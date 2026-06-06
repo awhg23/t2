@@ -207,13 +207,13 @@ def build():
 
     rounded(img, draw, (150, 2690, 1898, 3430), 64, (255, 253, 247, 226), LINE, 3)
     draw.text((230, 2770), "AI 衣柜功能展示", font=F["section"], fill=INK)
-    draw.text((230, 2850), "用文字描述特色服饰，AI 生成穿搭效果；灵光币解锁、衣柜收藏、一键穿戴。", font=F["body"], fill=MUTED)
+    draw.text((230, 2850), "用文字描述特色服饰，AI 生成穿搭效果；衣柜收藏、一键穿戴。", font=F["body"], fill=MUTED)
     paste_wardrobe_demo(img, draw, WARDROBE_IMAGES[0], (230, 2965, 715, 3315), "超人装")
     paste_wardrobe_demo(img, draw, WARDROBE_IMAGES[1], (850, 2965, 1335, 3315), "脑洞装")
     steps = [
         ("写下想法", "例如：超人斗篷、学院风、梦境礼服"),
         ("AI 试衣", "保留灵瑞特征，生成可收藏服饰图"),
-        ("灵光币解锁", "聊天和成就获得货币，调试锁定 99999"),
+        ("收藏穿戴", "生成后加入衣柜，可随时切换展示"),
     ]
     for i, (title, body) in enumerate(steps):
         y = 2970 + i * 112

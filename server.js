@@ -11,7 +11,6 @@ const OPENAI_BASE_URL = (process.env.OPENAI_BASE_URL || "https://ark.cn-beijing.
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "doubao-seed-2-0-pro-260215";
 const OPENAI_API_MODE = process.env.OPENAI_API_MODE || (OPENAI_BASE_URL.includes("volces.com") ? "responses" : "chat");
 const OUTFIT_IMAGE_MODEL = process.env.OUTFIT_IMAGE_MODEL || "doubao-seedream-5-0-260128";
-const OUTFIT_PRICE = Number(process.env.OUTFIT_PRICE || 1200);
 const GENERATED_OUTFIT_DIR = path.join(ROOT, "assets", "generated", "outfits");
 
 const MIME = {
@@ -31,6 +30,7 @@ const petProfiles = {
   wisdom: "智慧型星阅：理性、观察、拆解问题，提供清晰步骤和复盘。",
   healing: "治愈型橡芽：共情、温柔、允许休息，先照顾感受再处理事情。",
   wonder: "奇想型梦铃：幻想化、梦境感、创造力强，把情绪转成画面和灵感。",
+  zhangXuefeng: "高考导师型张雪峰老师：帅气、直给、清醒、提气，先说高考加油，再帮用户看清选择并给出可执行步骤。",
 };
 
 const categoryNames = {
@@ -57,6 +57,11 @@ function localPetReply(petKey, message) {
     wisdom: tired ? "先判断疲惫来源：睡眠不足、任务过大，还是不知道从哪开始？我们把目标降到一个很小的步骤。" : "我建议先提取事实，再列选择。你现在最需要的是清晰。",
     healing: tired ? "辛苦了。今天不想继续并不代表失败，可能只是身体在提醒你需要恢复。先照顾好自己。" : "我会先接住你的感受。你可以慢一点，也可以先照顾好自己。",
     wonder: tired ? "把疲惫折成一只小纸船，让它漂远一点。等它漂远，我们只捡起一颗最小的知识星星。" : "这句话像一枚小铃铛。我们把它挂到今天的梦境地图上。",
+    zhangXuefeng: delay
+      ? "高考加油。别空想逆袭，先把任务切到能落笔：一套错题、一个知识点、二十分钟，做完你就比刚才强。"
+      : tired
+        ? "高考加油。累是正常的，但别让情绪替你做决定，先睡够、吃稳，再把最能涨分的一件事拿出来做。"
+        : "高考加油。你现在要做的不是慌，是把选择摊开看清楚，然后抓住最有性价比的下一步。",
   };
   return replies[petKey] || replies.guardian;
 }
@@ -211,11 +216,26 @@ function parseJsonFromText(text) {
   return {};
 }
 
+function imageSafePetName(petName, petType) {
+  const raw = String(petName || "");
+  if (/张雪峰|雪峰|老师/.test(raw)) return `${petType || "高考导师型"}灵瑞`;
+  return raw.replace(/老师|先生|女士|同学/g, "").trim().slice(0, 18) || "Lingrui";
+}
+
+function imageSafeOutfitDescription(description) {
+  return String(description || "")
+    .replace(/张雪峰老师|张雪峰|雪峰老师|雪峰/g, "高考导师")
+    .replace(/真人|本人|明星|网红/g, "灵瑞")
+    .slice(0, 220);
+}
+
 function outfitPrompt({ description, petType, petName, hasReferenceImage }) {
+  const safePetName = imageSafePetName(petName, petType);
+  const safeDescription = imageSafeOutfitDescription(description);
   return [
     "Create a cute chibi spirit pet fashion design image.",
-    `Pet type: ${petType || "soft fantasy spirit pet"}. Pet name: ${petName || "Lingrui"}.`,
-    `Outfit request: ${description}.`,
+    `Pet type: ${petType || "soft fantasy spirit pet"}. Pet display name for image generation: ${safePetName}.`,
+    `Outfit request: ${safeDescription}.`,
     hasReferenceImage
       ? "Use the reference image as the primary character design source. Keep the original pet's species traits, face shape, fur colors, silhouette proportions, line style, rendering style, palette softness, and overall campus-diary illustration feeling consistent with the reference."
       : "Visual style: pastel campus diary, soft hand-drawn outlines, warm healing mood, sticker-like Q-version game asset, consistent with cute furry spirit mascot art.",
@@ -229,7 +249,7 @@ function outfitPrompt({ description, petType, petName, hasReferenceImage }) {
   ].join("\n");
 }
 
-function fallbackOutfitImage({ description, petType }) {
+function fallbackOutfitSvg({ description, petType }) {
   const safeDescription = String(description || "梦幻校园披风").slice(0, 60);
   const safeType = String(petType || "灵瑞").slice(0, 20);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
@@ -249,6 +269,58 @@ function fallbackOutfitImage({ description, petType }) {
   <text x="512" y="900" text-anchor="middle" font-size="30" font-family="PingFang SC, Microsoft YaHei, sans-serif" fill="#8d7b6f">${escapeSvg(safeDescription)}</text>
 </svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+function outfitOverlaySvg({ description }) {
+  const text = String(description || "");
+  const isSuper = /超人|斗篷|披风|英雄/.test(text);
+  const isStar = /星|月|梦|魔法|闪/.test(text);
+  const main = isSuper ? "#2f75d6" : isStar ? "#6e83c8" : "#8dcbd0";
+  const accent = isSuper ? "#e34f4f" : isStar ? "#f6cf72" : "#f4aab8";
+  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#6b4a2f" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <path d="M286 486c-58 38-90 118-80 214 6 55 24 112 42 151 15 33 57 26 62-10l34-244z" fill="${accent}" opacity="0.86" filter="url(#soft)"/>
+  <path d="M738 486c58 38 90 118 80 214-6 55-24 112-42 151-15 33-57 26-62-10l-34-244z" fill="${accent}" opacity="0.86" filter="url(#soft)"/>
+  <path d="M364 520c48-34 208-34 256 0l-42 210H406z" fill="${main}" opacity="0.86" filter="url(#soft)"/>
+  <path d="M430 520l82 66 82-66-32-44H462z" fill="#fff8ec" opacity="0.92"/>
+  <path d="M486 590l-42 74h86zM530 590l42 74h-86z" fill="${accent}" opacity="0.92"/>
+  <path d="M410 728h204" stroke="#8f6b4f" stroke-width="16" stroke-linecap="round" opacity="0.36"/>
+  <path d="M512 566l14 30 33 5-24 23 6 33-29-16-29 16 6-33-24-23 33-5z" fill="#fff0bd" stroke="#d9a944" stroke-width="6"/>
+  <path d="M254 394l12 26 29 4-21 20 5 29-25-14-26 14 5-29-21-20 29-4zM774 392l14 29 32 5-23 22 6 32-29-15-28 15 5-32-23-22 32-5z" fill="#fff0bd" stroke="#d9a944" stroke-width="6" opacity="${isStar ? "1" : "0.82"}"/>
+  </svg>`);
+}
+
+async function fallbackOutfitImage({ description, petType, referenceImage }) {
+  if (!referenceImage) return fallbackOutfitSvg({ description, petType });
+  try {
+    const petBuffer = await sourceToBuffer(referenceImage);
+    const petLayer = await sharp(petBuffer).ensureAlpha().resize({ width: 820, height: 860, fit: "inside" }).png().toBuffer();
+    const petMeta = await sharp(petLayer).metadata();
+    const left = Math.round((1024 - petMeta.width) / 2);
+    const top = Math.round((1024 - petMeta.height) / 2) + 20;
+    const composed = await sharp({
+      create: {
+        width: 1024,
+        height: 1024,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([
+        { input: petLayer, left, top },
+        { input: outfitOverlaySvg({ description }), left: 0, top: 0 },
+      ])
+      .png()
+      .toBuffer();
+    return persistOutfitImage(composed);
+  } catch (error) {
+    console.warn("reference fallback outfit failed:", error.message);
+    return fallbackOutfitSvg({ description, petType });
+  }
 }
 
 function escapeSvg(value) {
@@ -445,8 +517,18 @@ async function handleChat(req, res) {
   const body = await readJson(req);
   const petKey = body.petKey || "guardian";
   const customPetName = String(body.petName || "").trim().slice(0, 16);
+  const petProfile = body.petProfile && typeof body.petProfile === "object" ? body.petProfile : {};
   const userMessage = String(body.message || "").slice(0, 1200);
   const recentMemories = Array.isArray(body.memories) ? body.memories.slice(0, 2) : [];
+  const profileText = [
+    petProfiles[petKey] || "",
+    petProfile.type ? `灵瑞类型：${String(petProfile.type).slice(0, 40)}。` : "",
+    petProfile.tone ? `对话风格：${String(petProfile.tone).slice(0, 180)}。` : "",
+    petProfile.styleGuide ? `人格设定：${String(petProfile.styleGuide).slice(0, 260)}。` : "",
+    petProfile.opening ? `必要时可自然使用开场白：${String(petProfile.opening).slice(0, 60)}。` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const content = await openAIChat(
     [
@@ -454,7 +536,7 @@ async function handleChat(req, res) {
         role: "system",
         content: [
           "你是 AI 灵宠，中文回复。",
-          petProfiles[petKey] || petProfiles.guardian,
+          profileText || petProfiles.guardian,
           customPetName ? `你的名字是：${customPetName}。` : "",
           "回复 1-2 句，温柔具体，不说教。严重风险时建议联系可信任的人或专业支持。",
         ].join("\n"),
@@ -472,7 +554,141 @@ async function handleChat(req, res) {
     ok: true,
     provider: cleaned ? "openai" : "openai-fallback",
     reply: cleaned || localPetReply(petKey, userMessage),
-    memorySummary: `用户提到：${userMessage.slice(0, 40)}。本轮由大模型按${petProfiles[petKey] || petProfiles.guardian}生成陪伴反馈。`,
+    memorySummary: `用户提到：${userMessage.slice(0, 40)}。本轮由大模型按${profileText || petProfiles[petKey] || petProfiles.guardian}生成陪伴反馈。`,
+  });
+}
+
+function celebrityPetImagePrompt({ keyword, need, isZhang }) {
+  const visualKeyword = isZhang ? "charismatic Chinese gaokao mentor archetype" : "abstract public-persona inspired mentor mascot";
+  return [
+    "Create a cute, handsome spirit pet character asset for a Chinese campus growth companion H5 app.",
+    `Reference style keyword: ${visualKeyword}.`,
+    `User need: ${need || "growth companionship and study encouragement"}.`,
+    "If a reference image is supplied, use it to capture broad recognizable public visual cues such as hairstyle, face shape, expression, outfit vibe, and posture, then transform those cues into an original stylized spirit pet mascot.",
+    isZhang
+      ? "Character direction: a charismatic Chinese gaokao mentor spirit pet, handsome, confident, clean short black hair, navy blazer, white shirt, red accent tie, holding an exam notebook and golden star pointer. Energetic education coach feeling, not photorealistic and not an exact portrait."
+      : "Character direction: transform the public style into an abstract original spirit pet mascot. Capture broad public persona traits only; do not create an exact portrait or copy private identity details.",
+    "Visual style: polished mobile game sticker, soft pastel campus scrapbook, warm outlines, full-body centered, transparent background with alpha channel.",
+    "Avoid readable text, logos, watermark, photorealism, exact celebrity face, harsh caricature, busy background.",
+  ].join("\n");
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function cleanReferenceKeyword(keyword) {
+  return String(keyword || "")
+    .replace(/老师|先生|女士/g, "")
+    .trim();
+}
+
+async function searchReferenceImageUrl(keyword) {
+  const cleanKeyword = cleanReferenceKeyword(keyword);
+  const query = `${cleanKeyword || keyword} 近照 正面 高清`;
+  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&first=1`;
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
+  if (!response.ok) throw new Error(`reference image search failed: ${response.status}`);
+  const html = await response.text();
+  const candidates = [];
+  for (const match of html.matchAll(/m=\"({.+?})\"/g)) {
+    try {
+      const payload = JSON.parse(decodeHtmlEntities(match[1]));
+      if (payload.murl) candidates.push(payload.murl);
+      if (payload.turl) candidates.push(payload.turl);
+    } catch {}
+  }
+  for (const match of html.matchAll(/"murl":"(https?:\/\/[^"]+)"/g)) {
+    candidates.push(decodeHtmlEntities(match[1]).replace(/\\\//g, "/"));
+  }
+  return candidates.find((item) => /^https?:\/\//.test(item) && !/\.svg($|\?)/i.test(item)) || "";
+}
+
+function fallbackCelebrityPet({ keyword, need }) {
+  const isZhang = /张雪峰|雪峰/i.test(keyword);
+  return {
+    name: isZhang ? "张雪峰老师" : `${String(keyword || "名人").slice(0, 10)}灵瑞`,
+    type: isZhang ? "高考导师型" : "名人投影型",
+    opening: isZhang ? "高考加油" : "我会把这份风格变成陪伴力",
+    personality: isZhang ? "帅气、直给、清醒、提气，擅长把升学和学习选择讲明白。" : `参考${keyword || "目标人物"}的公开风格，抽象成积极、可陪伴的人格灵瑞。`,
+    tone: isZhang ? "先鼓劲，再分析选择，最后给一个能马上执行的小步骤。" : need || "抓住核心，表达鲜明，给出具体建议。",
+    imageUrl: isZhang ? "/assets/pets/transparent/zhang-xuefeng.png" : "/assets/pets/transparent/wisdom.png",
+  };
+}
+
+async function handleCelebrityPet(req, res) {
+  const body = await readJson(req);
+  const keyword = String(body.keyword || "").trim().slice(0, 80);
+  const need = String(body.need || "").trim().slice(0, 180);
+  if (!keyword) return json(res, 400, { ok: false, error: "keyword is required" });
+  const isZhang = /张雪峰|雪峰/i.test(keyword);
+  const fallback = fallbackCelebrityPet({ keyword, need });
+  let pet = fallback;
+  let referenceImageUrl = "";
+
+  try {
+    referenceImageUrl = await searchReferenceImageUrl(keyword);
+  } catch (error) {
+    console.warn("celebrity reference image search fallback:", error.message);
+  }
+
+  try {
+    const content = await openAIChat(
+      [
+        {
+          role: "system",
+          content:
+            "你是 AI 产品里的灵瑞人格设计师。根据用户输入的网络名人或风格关键词，生成一个抽象化、非隐私、非原始照片复刻的灵瑞设定。只输出 JSON。",
+        },
+        {
+          role: "user",
+          content: [
+            `关键词：${keyword}`,
+            `用户期待：${need || "陪伴学习成长"}`,
+            isZhang ? "特殊要求：预设为张雪峰老师，开场白必须是“高考加油”，形象气质必须帅气、提气、清醒。" : "",
+            "JSON 字段：name,type,opening,personality,tone,tags。name 不超过 12 字，opening 不超过 20 字，tone 不超过 80 字。",
+          ].join("\n"),
+        },
+      ],
+      { temperature: 0.72, max_tokens: 900, timeoutMs: 45000 },
+    );
+    const parsed = parseJsonFromText(content);
+    pet = {
+      ...fallback,
+      ...parsed,
+      opening: isZhang ? "高考加油" : parsed.opening || fallback.opening,
+      name: isZhang ? "张雪峰老师" : parsed.name || fallback.name,
+    };
+  } catch (error) {
+    console.warn("celebrity pet text fallback:", error.message);
+  }
+
+  try {
+    pet.imageUrl = await generateOutfitImage({
+      prompt: celebrityPetImagePrompt({ keyword, need, isZhang }),
+      referenceImage: referenceImageUrl,
+    });
+  } catch (error) {
+    console.warn("celebrity pet image fallback:", error.message);
+    pet.imageUrl = fallback.imageUrl;
+  }
+
+  pet.referenceImageUrl = referenceImageUrl;
+  json(res, 200, {
+    ok: true,
+    provider: pet.imageUrl === fallback.imageUrl ? (referenceImageUrl ? "model-text-ref-local-image" : "model-text-local-image") : referenceImageUrl ? "model-text-ref-image" : "model-text-image",
+    referenceImageUrl,
+    pet,
   });
 }
 
@@ -578,16 +794,15 @@ async function handleOutfitGenerate(req, res) {
       ok: true,
       provider: "seedream",
       imageUrl,
-      price: OUTFIT_PRICE,
       model: OUTFIT_IMAGE_MODEL,
       prompt,
     });
   } catch (error) {
+    const fallbackImageUrl = await fallbackOutfitImage({ description, petType, referenceImage });
     return json(res, 200, {
       ok: true,
       provider: "local-fallback",
-      imageUrl: fallbackOutfitImage({ description, petType }),
-      price: OUTFIT_PRICE,
+      imageUrl: fallbackImageUrl,
       model: OUTFIT_IMAGE_MODEL,
       prompt,
       warning: error.message,
@@ -605,7 +820,6 @@ async function handleApi(req, res, pathname) {
         model: OPENAI_MODEL,
         mode: OPENAI_API_MODE,
         outfitImageModel: OUTFIT_IMAGE_MODEL,
-        outfitPrice: OUTFIT_PRICE,
       });
     }
     if (req.method !== "POST") return json(res, 405, { ok: false, error: "Method not allowed" });
@@ -613,6 +827,7 @@ async function handleApi(req, res, pathname) {
     if (pathname === "/api/images/analyze") return await handleImageAnalyze(req, res);
     if (pathname === "/api/persona/generate") return await handlePersona(req, res);
     if (pathname === "/api/outfits/generate") return await handleOutfitGenerate(req, res);
+    if (pathname === "/api/pets/celebrity") return await handleCelebrityPet(req, res);
     return json(res, 404, { ok: false, error: "API not found" });
   } catch (error) {
     return json(res, error.status || 500, {
@@ -646,5 +861,5 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`Lingrui H5 server: http://127.0.0.1:${PORT}`);
   console.log(`OpenAI config: base=${OPENAI_BASE_URL} model=${OPENAI_MODEL} mode=${OPENAI_API_MODE} key=${OPENAI_API_KEY ? "set" : "missing"}`);
-  console.log(`Outfit image config: model=${OUTFIT_IMAGE_MODEL} price=${OUTFIT_PRICE}`);
+  console.log(`Outfit image config: model=${OUTFIT_IMAGE_MODEL}`);
 });

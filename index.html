@@ -36,11 +36,6 @@
           <span>连续陪伴</span>
           <strong><span id="streakDays">1</span> 天</strong>
         </div>
-        <div class="currency-card">
-          <span>灵光币</span>
-          <strong id="currencyAmount">99999</strong>
-          <small>调试锁定</small>
-        </div>
         <nav class="nav-list" aria-label="主要导航">
           <button class="nav-item is-active" data-view="home">首页</button>
           <button class="nav-item" data-view="quiz">问卷</button>
@@ -48,6 +43,7 @@
           <button class="nav-item" data-view="chat">聊天</button>
           <button class="nav-item" data-view="outfits">工坊</button>
           <button class="nav-item" data-view="profile">画像</button>
+          <button class="nav-item" data-view="achievements">成就</button>
           <button class="nav-item" data-view="share">分享</button>
         </nav>
       </aside>
@@ -68,7 +64,7 @@
               <p id="homeAdvice">上传学习、运动、饮食、风景、社交、创作、情绪或整理照片，灵宠会识别并获得成长。</p>
               <div class="action-row">
                 <button class="primary-button" data-jump="upload">上传生活图片</button>
-                <button class="secondary-button" data-jump="chat">和灵宠说话</button>
+                <button class="secondary-button" data-jump="chat">和灵瑞对话</button>
                 <button class="secondary-button" data-jump="outfits">定制服饰</button>
                 <button class="secondary-button" data-jump="pets">管理灵瑞</button>
               </div>
@@ -110,11 +106,48 @@
           </header>
           <article class="panel">
             <div class="panel-title">
-              <h3>五个灵瑞</h3>
+              <h3>预设与自定义灵瑞</h3>
               <span>切换后会保留各自名字</span>
             </div>
             <div class="pet-picker pet-picker-large" id="petPicker"></div>
+            <div id="petActionPanel" class="pet-action-panel"></div>
           </article>
+          <div class="grid two">
+            <article class="panel custom-pet-panel">
+              <div class="panel-title">
+                <h3>上传图片自定义</h3>
+                <span>形象、性格和口吻都由你设定</span>
+              </div>
+              <form id="customPetForm" class="custom-pet-form">
+                <label class="mini-drop-zone" for="customPetImageInput">
+                  <input id="customPetImageInput" type="file" accept="image/*" />
+                  <img id="customPetPreview" alt="" />
+                  <span id="customPetImageHint">上传灵瑞形象</span>
+                </label>
+                <div class="form-grid">
+                  <input id="customPetName" maxlength="12" placeholder="灵瑞名字，例如：小峰" />
+                  <input id="customPetType" maxlength="16" placeholder="类型，例如：高考导师型" />
+                </div>
+                <input id="customPetOpening" maxlength="40" placeholder="开场白，例如：高考加油" />
+                <textarea id="customPetPersonality" maxlength="140" placeholder="描绘性格：直给、热血、会帮我分析选择，但不制造焦虑"></textarea>
+                <textarea id="customPetTone" maxlength="140" placeholder="描绘对话风格：先鼓劲，再给具体步骤，像朋友一样说人话"></textarea>
+                <button class="primary-button full" type="submit">创建自定义灵瑞</button>
+              </form>
+            </article>
+            <article class="panel custom-pet-panel">
+              <div class="panel-title">
+                <h3>名人灵瑞生成</h3>
+                <span>大模型生成抽象人格和形象</span>
+              </div>
+              <form id="celebrityPetForm" class="custom-pet-form">
+                <input id="celebrityPetName" maxlength="24" value="张雪峰老师" placeholder="网络名人或风格关键词" />
+                <textarea id="celebrityPetNeed" maxlength="160" placeholder="你希望它怎么陪你？例如：高考/考研鼓励、专业选择、学习规划，形象要帅"></textarea>
+                <button class="primary-button full" type="submit">让大模型生成灵瑞</button>
+                <p class="outfit-note">生成的是灵瑞化的抽象风格，不展示原始照片，也不会暴露隐私。</p>
+              </form>
+              <div id="celebrityPetResult" class="analysis-empty">生成后会自动加入上方灵瑞列表。</div>
+            </article>
+          </div>
         </section>
 
         <section class="view" id="view-quiz">
@@ -185,19 +218,14 @@
               <p class="eyebrow">服饰工坊</p>
               <h2>用一句话给灵瑞定制穿搭</h2>
             </div>
-            <div class="coin-pill">灵光币 <strong id="workshopCurrency">99999</strong></div>
           </header>
           <div class="grid two">
             <article class="panel outfit-maker">
               <div class="panel-title">
                 <h3>文字描述</h3>
-                <span>调试模式：货币锁定</span>
+                <span>生成后自动收藏</span>
               </div>
               <textarea id="outfitPrompt" maxlength="120" placeholder="例如：星空斗篷、透明雨靴、月亮铃铛围巾，适合图书馆夜读"></textarea>
-              <div class="price-row">
-                <span>本次生成消耗</span>
-                <strong id="outfitPrice">1200</strong>
-              </div>
               <button class="primary-button full" id="generateOutfitBtn">生成并加入衣柜</button>
               <p class="outfit-note">服饰由生图接口生成。若当前图片模型不可用，会使用本地贴纸风格兜底图，确保流程可演示。</p>
             </article>
@@ -268,6 +296,7 @@
               <div id="personaTags" class="tag-row"></div>
               <div class="privacy-note">仅链接可见；不分享原始聊天、原始图片、精确位置或联系方式。</div>
               <button class="primary-button full" id="generateLinkBtn">生成人格链接</button>
+              <button class="secondary-button full" id="copyLinkBtn">复制人格链接</button>
               <button class="secondary-button full" id="deleteLinkBtn">删除链接</button>
             </article>
             <article class="panel">
@@ -281,14 +310,50 @@
             </article>
           </div>
         </section>
+
+        <section class="view" id="view-achievements">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">成就图鉴</p>
+              <h2>把每次记录、聊天和创作都变成勋章</h2>
+            </div>
+            <div class="action-row">
+              <button class="secondary-button" id="resetAchievementsBtn">重置成就(调试)</button>
+              <button class="ghost-button" data-jump="home">返回首页</button>
+            </div>
+          </header>
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-title">
+                <h3>解锁进度</h3>
+                <span id="achievementUnlockedCount">0 / 0</span>
+              </div>
+              <div id="achievementStats" class="achievement-stats"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-title">
+                <h3>最近解锁</h3>
+                <span id="achievementGridStatus">0%</span>
+              </div>
+              <div id="achievementLatest" class="achievement-latest"></div>
+            </article>
+          </div>
+          <article class="panel">
+            <div class="panel-title">
+              <h3>全部成就</h3>
+              <span>持续记录会逐步点亮</span>
+            </div>
+            <div id="achievementGrid" class="achievement-grid"></div>
+          </article>
+        </section>
       </main>
     </div>
 
     <div class="achievement hidden" id="achievementToast">
-      <div class="achievement-icon">✦</div>
+      <div class="achievement-icon" id="achievementToastIcon">✦</div>
       <div>
-        <strong>新的开始</strong>
-        <p>你把第一片日常交给了灵宠。</p>
+        <strong id="achievementToastTitle">新的开始</strong>
+        <p id="achievementToastText">你把第一片日常交给了灵宠。</p>
       </div>
     </div>
 
