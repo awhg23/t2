@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>灵瑞成长记</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="side-panel">
+        <div class="brand">
+          <span class="brand-mark">✦</span>
+          <div>
+            <strong>灵瑞成长记</strong>
+            <small>AI 成长陪伴 H5</small>
+          </div>
+        </div>
+        <div class="pet-stage">
+          <img id="activePetImage" alt="当前灵宠" />
+          <div class="pet-glow"></div>
+        </div>
+        <div class="pet-summary">
+          <span id="activePetType">守护型</span>
+          <div class="pet-name-row">
+            <h1 id="activePetName">鹿眠</h1>
+            <button class="name-edit-button" id="editPetNameBtn" type="button" aria-label="修改灵瑞名字">改名</button>
+          </div>
+          <form class="rename-form hidden" id="renamePetForm">
+            <input id="petNameInput" maxlength="8" autocomplete="off" />
+            <button class="primary-button" type="submit">保存</button>
+          </form>
+          <p id="activePetLine">我在这里，陪你把今天慢慢放稳。</p>
+        </div>
+        <div class="streak-card">
+          <span>连续陪伴</span>
+          <strong><span id="streakDays">1</span> 天</strong>
+        </div>
+        <div class="currency-card">
+          <span>灵光币</span>
+          <strong id="currencyAmount">99999</strong>
+          <small>调试锁定</small>
+        </div>
+        <nav class="nav-list" aria-label="主要导航">
+          <button class="nav-item is-active" data-view="home">首页</button>
+          <button class="nav-item" data-view="quiz">问卷</button>
+          <button class="nav-item" data-view="upload">上传</button>
+          <button class="nav-item" data-view="chat">聊天</button>
+          <button class="nav-item" data-view="outfits">工坊</button>
+          <button class="nav-item" data-view="profile">画像</button>
+          <button class="nav-item" data-view="share">分享</button>
+        </nav>
+      </aside>
+
+      <main class="main-panel">
+        <section class="view is-active" id="view-home">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">今日手账</p>
+              <h2>把日常变成灵瑞的成长</h2>
+            </div>
+            <button class="ghost-button" id="resetDemoBtn">重置演示</button>
+          </header>
+
+          <div class="hero-card">
+            <div class="hero-copy">
+              <h3 id="homeGreeting">今天先从一张照片开始</h3>
+              <p id="homeAdvice">上传学习、运动、饮食、风景、社交、创作、情绪或整理照片，灵宠会识别并获得成长。</p>
+              <div class="action-row">
+                <button class="primary-button" data-jump="upload">上传生活图片</button>
+                <button class="secondary-button" data-jump="chat">和灵宠说话</button>
+                <button class="secondary-button" data-jump="outfits">定制服饰</button>
+                <button class="secondary-button" data-jump="pets">管理灵瑞</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid two">
+            <article class="panel current-pet-panel">
+              <div class="panel-title">
+                <h3>当前灵瑞</h3>
+                <span id="currentPetMeta">守护型</span>
+              </div>
+              <div class="current-pet-card">
+                <img id="homePetImage" alt="当前灵瑞" />
+                <div>
+                  <strong id="homePetName">鹿眠</strong>
+                  <p id="homePetTone">稳定、安抚、不强迫</p>
+                  <button class="ghost-button" data-jump="pets">进入灵瑞管理</button>
+                </div>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-title">
+                <h3>今日成长</h3>
+                <span id="todayDelta">暂无上传</span>
+              </div>
+              <div id="topAttributes" class="attribute-stack"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-pets">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">灵瑞管理</p>
+              <h2>选择今天陪你的伙伴</h2>
+            </div>
+            <button class="ghost-button" data-jump="home">返回首页</button>
+          </header>
+          <article class="panel">
+            <div class="panel-title">
+              <h3>五个灵瑞</h3>
+              <span>切换后会保留各自名字</span>
+            </div>
+            <div class="pet-picker pet-picker-large" id="petPicker"></div>
+          </article>
+        </section>
+
+        <section class="view" id="view-quiz">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">初始问卷</p>
+              <h2>匹配你的第一只灵瑞</h2>
+            </div>
+            <button class="ghost-button" id="restartQuizBtn">重新答题</button>
+          </header>
+          <div class="quiz-card">
+            <div class="quiz-progress">
+              <span id="quizStep">1 / 15</span>
+              <div><i id="quizProgressBar"></i></div>
+            </div>
+            <h3 id="quizQuestion"></h3>
+            <div id="quizOptions" class="quiz-options"></div>
+          </div>
+          <div id="quizResult" class="result-card hidden"></div>
+        </section>
+
+        <section class="view" id="view-upload">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">图片上传成长</p>
+              <h2>让 AI 从生活照片里读出成长信号</h2>
+            </div>
+          </header>
+          <div class="grid two">
+            <article class="panel upload-panel">
+              <label class="drop-zone" for="photoInput">
+                <input id="photoInput" type="file" accept="image/*" />
+                <img id="photoPreview" alt="" />
+                <span id="dropHint">选择一张生活图片</span>
+              </label>
+              <div class="category-grid" id="categoryGrid"></div>
+              <button class="primary-button full" id="analyzeBtn">AI 识别并结算成长</button>
+            </article>
+            <article class="panel">
+              <div class="panel-title">
+                <h3>识别结果</h3>
+                <span id="confidenceText">等待上传</span>
+              </div>
+              <div id="analysisResult" class="analysis-empty">识别后会显示类型、标签、经验变化、特殊事件和宠物反馈。</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-chat">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">灵宠聊天</p>
+              <h2>同一句话，五种陪伴风格</h2>
+            </div>
+          </header>
+          <div class="chat-layout">
+            <div class="chat-log" id="chatLog"></div>
+            <form class="chat-form" id="chatForm">
+              <input id="chatInput" autocomplete="off" placeholder="例如：我今天很累，不想学习" />
+              <button class="primary-button" type="submit">发送</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="view" id="view-outfits">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">服饰工坊</p>
+              <h2>用一句话给灵瑞定制穿搭</h2>
+            </div>
+            <div class="coin-pill">灵光币 <strong id="workshopCurrency">99999</strong></div>
+          </header>
+          <div class="grid two">
+            <article class="panel outfit-maker">
+              <div class="panel-title">
+                <h3>文字描述</h3>
+                <span>调试模式：货币锁定</span>
+              </div>
+              <textarea id="outfitPrompt" maxlength="120" placeholder="例如：星空斗篷、透明雨靴、月亮铃铛围巾，适合图书馆夜读"></textarea>
+              <div class="price-row">
+                <span>本次生成消耗</span>
+                <strong id="outfitPrice">1200</strong>
+              </div>
+              <button class="primary-button full" id="generateOutfitBtn">生成并加入衣柜</button>
+              <p class="outfit-note">服饰由生图接口生成。若当前图片模型不可用，会使用本地贴纸风格兜底图，确保流程可演示。</p>
+            </article>
+            <article class="panel outfit-preview">
+              <div class="panel-title">
+                <h3>当前穿搭</h3>
+                <span id="equippedOutfitStatus">未穿戴</span>
+              </div>
+              <div id="equippedOutfitBox" class="equipped-outfit-box"></div>
+            </article>
+          </div>
+          <article class="panel closet-panel">
+            <div class="panel-title">
+              <h3>衣柜</h3>
+              <span id="closetCount">0 件</span>
+            </div>
+            <div id="outfitCloset" class="outfit-closet"></div>
+          </article>
+        </section>
+
+        <section class="view" id="view-profile">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">用户画像</p>
+              <h2>属性、称号、记忆都由日常生成</h2>
+            </div>
+            <button class="ghost-button" id="clearMemoriesBtn">清空记忆</button>
+          </header>
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-title">
+                <h3>成长雷达</h3>
+                <span>Lv.1-Lv.10</span>
+              </div>
+              <div id="radarChart" class="radar-chart"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-title">
+                <h3>专属称号</h3>
+                <span id="titleCount">0 个</span>
+              </div>
+              <div id="titleList" class="title-list"></div>
+            </article>
+          </div>
+          <article class="panel memory-panel">
+            <div class="panel-title">
+              <h3>可控聊天记忆</h3>
+              <span>可删除单条</span>
+            </div>
+            <div id="memoryList" class="memory-list"></div>
+          </article>
+        </section>
+
+        <section class="view" id="view-share">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">人格链接</p>
+              <h2>把抽象画像分享给熟人，而不是暴露隐私</h2>
+            </div>
+          </header>
+          <div class="grid two">
+            <article class="panel persona-card">
+              <div class="panel-title">
+                <h3>链接预览</h3>
+                <span id="personaCompleteness">画像完整度 0%</span>
+              </div>
+              <p id="personaIntro" class="persona-intro"></p>
+              <div id="personaTags" class="tag-row"></div>
+              <div class="privacy-note">仅链接可见；不分享原始聊天、原始图片、精确位置或联系方式。</div>
+              <button class="primary-button full" id="generateLinkBtn">生成人格链接</button>
+              <button class="secondary-button full" id="deleteLinkBtn">删除链接</button>
+            </article>
+            <article class="panel">
+              <div class="panel-title">
+                <h3>好友导入演示</h3>
+                <span id="linkStatus">尚未生成</span>
+              </div>
+              <div id="linkBox" class="link-box">生成后会出现可复制链接。</div>
+              <button class="secondary-button full" id="importPersonaBtn">模拟好友导入</button>
+              <div id="dualPetBox" class="dual-pet-box"></div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="achievement hidden" id="achievementToast">
+      <div class="achievement-icon">✦</div>
+      <div>
+        <strong>新的开始</strong>
+        <p>你把第一片日常交给了灵宠。</p>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
