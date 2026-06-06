@@ -1,6 +1,8 @@
 const http = require("http");
+const { randomUUID } = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const sharp = require("sharp");
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
@@ -10,6 +12,7 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "doubao-seed-2-0-pro-260215";
 const OPENAI_API_MODE = process.env.OPENAI_API_MODE || (OPENAI_BASE_URL.includes("volces.com") ? "responses" : "chat");
 const OUTFIT_IMAGE_MODEL = process.env.OUTFIT_IMAGE_MODEL || "doubao-seedream-5-0-260128";
 const OUTFIT_PRICE = Number(process.env.OUTFIT_PRICE || 1200);
+const GENERATED_OUTFIT_DIR = path.join(ROOT, "assets", "generated", "outfits");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -208,13 +211,20 @@ function parseJsonFromText(text) {
   return {};
 }
 
-function outfitPrompt({ description, petType, petName }) {
+function outfitPrompt({ description, petType, petName, hasReferenceImage }) {
   return [
     "Create a cute chibi spirit pet fashion design image.",
     `Pet type: ${petType || "soft fantasy spirit pet"}. Pet name: ${petName || "Lingrui"}.`,
     `Outfit request: ${description}.`,
-    "Visual style: pastel campus diary, soft hand-drawn outlines, warm healing mood, sticker-like Q-version game asset, consistent with cute furry spirit mascot art.",
+    hasReferenceImage
+      ? "Use the reference image as the primary character design source. Keep the original pet's species traits, face shape, fur colors, silhouette proportions, line style, rendering style, palette softness, and overall campus-diary illustration feeling consistent with the reference."
+      : "Visual style: pastel campus diary, soft hand-drawn outlines, warm healing mood, sticker-like Q-version game asset, consistent with cute furry spirit mascot art.",
+    hasReferenceImage
+      ? "Only redesign the clothing and accessories described by the user. Do not replace the character with a different creature, do not change the core body shape, and do not drift into a different art style."
+      : "Subject: a full-body chibi spirit pet wearing the custom outfit, centered, clean composition.",
     "Subject: a full-body chibi spirit pet wearing the custom outfit, centered, clean composition.",
+    "Background requirement: transparent background with alpha channel, isolated character only, no backdrop, no scenery, no gradient card, no floor, no frame.",
+    "Keep the outer silhouette clean for sticker-like compositing, and avoid cropped ears, tail, feet, or accessories.",
     "Avoid readable text, logos, watermark, photorealism, harsh shadows, dark palette, busy background.",
   ].join("\n");
 }
@@ -224,17 +234,10 @@ function fallbackOutfitImage({ description, petType }) {
   const safeType = String(petType || "灵瑞").slice(0, 20);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#fff7ea"/>
-      <stop offset="0.55" stop-color="#d8f1e5"/>
-      <stop offset="1" stop-color="#ffdbe3"/>
-    </linearGradient>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#8f6b4f" flood-opacity="0.22"/>
     </filter>
   </defs>
-  <rect width="1024" height="1024" rx="96" fill="url(#bg)"/>
-  <circle cx="512" cy="520" r="315" fill="#fffdf7" opacity="0.82"/>
   <path d="M318 338c84-74 283-75 385 0 31 23 39 72 15 107l-58 83 38 170c8 35-18 69-54 69H380c-36 0-62-34-54-69l38-170-58-83c-24-35-16-84 12-107z" fill="#f6cf72" filter="url(#shadow)"/>
   <path d="M382 382c62-45 201-45 260 0l-63 118H445z" fill="#f4aab8"/>
   <path d="M379 534h266l33 148H346z" fill="#8dcbd0"/>
@@ -256,7 +259,143 @@ function escapeSvg(value) {
     .replace(/"/g, "&quot;");
 }
 
-async function generateOutfitImage(prompt) {
+async function sourceToBuffer(source) {
+  if (!source) throw new Error("image source is required");
+  if (source.startsWith("data:")) {
+    const base64 = source.split(",", 2)[1] || "";
+    return Buffer.from(base64, "base64");
+  }
+  const response = await fetch(source);
+  if (!response.ok) throw new Error(`Failed to fetch generated image: ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function estimateBackgroundColor(data, width, height) {
+  const sampleRadius = 3;
+  const corners = [
+    [0, 0],
+    [width - 1, 0],
+    [0, height - 1],
+    [width - 1, height - 1],
+  ];
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let count = 0;
+
+  for (const [startX, startY] of corners) {
+    for (let dy = 0; dy < sampleRadius; dy += 1) {
+      for (let dx = 0; dx < sampleRadius; dx += 1) {
+        const x = Math.min(width - 1, Math.max(0, startX + (startX === 0 ? dx : -dx)));
+        const y = Math.min(height - 1, Math.max(0, startY + (startY === 0 ? dy : -dy)));
+        const index = (y * width + x) * 4;
+        r += data[index];
+        g += data[index + 1];
+        b += data[index + 2];
+        count += 1;
+      }
+    }
+  }
+
+  return {
+    r: Math.round(r / count),
+    g: Math.round(g / count),
+    b: Math.round(b / count),
+  };
+}
+
+function isBackgroundLike(data, pixelIndex, bg) {
+  const r = data[pixelIndex];
+  const g = data[pixelIndex + 1];
+  const b = data[pixelIndex + 2];
+  const a = data[pixelIndex + 3];
+  if (a === 0) return true;
+  const brightness = (r + g + b) / 3;
+  const distance = Math.abs(r - bg.r) + Math.abs(g - bg.g) + Math.abs(b - bg.b);
+  return brightness >= 235 && distance <= 72;
+}
+
+async function removeBackgroundToTransparent(buffer) {
+  const { data, info } = await sharp(buffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const output = Buffer.from(data);
+  const { width, height } = info;
+  const bg = estimateBackgroundColor(output, width, height);
+  const visited = new Uint8Array(width * height);
+  const queue = [];
+  let head = 0;
+
+  function enqueue(x, y) {
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const flatIndex = y * width + x;
+    if (visited[flatIndex]) return;
+    const pixelIndex = flatIndex * 4;
+    if (!isBackgroundLike(output, pixelIndex, bg)) return;
+    visited[flatIndex] = 1;
+    queue.push(flatIndex);
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x, 0);
+    enqueue(x, height - 1);
+  }
+  for (let y = 0; y < height; y += 1) {
+    enqueue(0, y);
+    enqueue(width - 1, y);
+  }
+
+  while (head < queue.length) {
+    const flatIndex = queue[head++];
+    const x = flatIndex % width;
+    const y = Math.floor(flatIndex / width);
+    const pixelIndex = flatIndex * 4;
+    output[pixelIndex + 3] = 0;
+    enqueue(x - 1, y);
+    enqueue(x + 1, y);
+    enqueue(x, y - 1);
+    enqueue(x, y + 1);
+  }
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const flatIndex = y * width + x;
+      const pixelIndex = flatIndex * 4;
+      if (output[pixelIndex + 3] === 0) continue;
+      const neighbors = [
+        ((y - 1) * width + x) * 4,
+        ((y + 1) * width + x) * 4,
+        (y * width + x - 1) * 4,
+        (y * width + x + 1) * 4,
+      ];
+      if (!neighbors.some((neighborIndex) => output[neighborIndex + 3] === 0)) continue;
+      const r = output[pixelIndex];
+      const g = output[pixelIndex + 1];
+      const b = output[pixelIndex + 2];
+      const brightness = (r + g + b) / 3;
+      const distance = Math.abs(r - bg.r) + Math.abs(g - bg.g) + Math.abs(b - bg.b);
+      if (brightness < 205 || distance > 120) continue;
+      const alpha = Math.max(0, Math.min(255, Math.round(((distance + 20) / 140) * 255)));
+      output[pixelIndex + 3] = Math.min(output[pixelIndex + 3], alpha);
+    }
+  }
+
+  return sharp(output, { raw: { width, height, channels: 4 } }).png().toBuffer();
+}
+
+async function persistOutfitImage(buffer) {
+  fs.mkdirSync(GENERATED_OUTFIT_DIR, { recursive: true });
+  const fileName = `outfit-${Date.now()}-${randomUUID().slice(0, 8)}.png`;
+  const filePath = path.join(GENERATED_OUTFIT_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return `/assets/generated/outfits/${fileName}`;
+}
+
+async function finalizeOutfitImage(source) {
+  const rawBuffer = await sourceToBuffer(source);
+  const transparentBuffer = await removeBackgroundToTransparent(rawBuffer);
+  return persistOutfitImage(transparentBuffer);
+}
+
+async function generateOutfitImage({ prompt, referenceImage }) {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY or ARK_API_KEY is not set");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90000);
@@ -272,8 +411,10 @@ async function generateOutfitImage(prompt) {
       body: JSON.stringify({
         model: OUTFIT_IMAGE_MODEL,
         prompt,
-        size: "1024x1024",
+        ...(referenceImage ? { image: [referenceImage] } : {}),
+        size: "2048x2048",
         response_format: "url",
+        output_format: "png",
         watermark: false,
       }),
     });
@@ -294,9 +435,9 @@ async function generateOutfitImage(prompt) {
     throw error;
   }
   const item = payload.data?.[0] || payload.result?.[0] || payload.images?.[0] || {};
-  if (item.url) return item.url;
-  if (item.b64_json) return `data:image/png;base64,${item.b64_json}`;
-  if (payload.url) return payload.url;
+  if (item.url) return finalizeOutfitImage(item.url);
+  if (item.b64_json) return finalizeOutfitImage(`data:image/png;base64,${item.b64_json}`);
+  if (payload.url) return finalizeOutfitImage(payload.url);
   throw new Error("Image generation response did not include a URL or base64 image");
 }
 
@@ -427,11 +568,12 @@ async function handleOutfitGenerate(req, res) {
   const description = String(body.description || "").trim().slice(0, 260);
   const petType = String(body.petType || "").trim().slice(0, 40);
   const petName = String(body.petName || "").trim().slice(0, 30);
+  const referenceImage = typeof body.referenceImage === "string" ? body.referenceImage.slice(0, 10 * 1024 * 1024) : "";
   if (!description) return json(res, 400, { ok: false, error: "description is required" });
 
-  const prompt = outfitPrompt({ description, petType, petName });
+  const prompt = outfitPrompt({ description, petType, petName, hasReferenceImage: Boolean(referenceImage) });
   try {
-    const imageUrl = await generateOutfitImage(prompt);
+    const imageUrl = await generateOutfitImage({ prompt, referenceImage });
     return json(res, 200, {
       ok: true,
       provider: "seedream",

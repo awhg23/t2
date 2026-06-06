@@ -1,0 +1,27 @@
+{
+  "name": "t2",
+  "version": "1.0.0",
+  "description": "一个静态 H5 原型，实现「AI 灵宠陪伴 + 图片上传成长 + 用户画像 + 人格链接轻社交」核心闭环。",
+  "main": "app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/awhg23/t2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/awhg23/t2/issues"
+  },
+  "homepage": "https://github.com/awhg23/t2#readme",
+  "dependencies": {
+    "sharp": "^0.34.5"
+  }
+}

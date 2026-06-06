@@ -375,6 +375,23 @@ function fileToDataUrl(file) {
   });
 }
 
+function urlToDataUrl(url) {
+  return fetch(url)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Failed to load reference image: ${response.status}`);
+      return response.blob();
+    })
+    .then(
+      (blob) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        }),
+    );
+}
+
 async function analyzeUpload() {
   const input = $("#photoInput");
   $("#analyzeBtn").disabled = true;
@@ -567,11 +584,16 @@ async function generateOutfit() {
   button.disabled = true;
   button.textContent = "生图中...";
   try {
+    const referenceImage = await urlToDataUrl(pets[state.activePet].img).catch((error) => {
+      console.warn("outfit reference image fallback:", error.message);
+      return null;
+    });
     const data = await postJson("/api/outfits/generate", {
       description,
       petKey: state.activePet,
       petName: petName(),
       petType: pets[state.activePet].type,
+      referenceImage,
     });
     const outfit = {
       id: crypto.randomUUID(),

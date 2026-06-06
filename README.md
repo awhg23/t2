@@ -101,3 +101,4 @@ export OUTFIT_PRICE="1200"
 
 - 产品 PRD：`docs/prd/PRD-001.md`
 - PRD 总集：`docs/PRD_REGISTRY.md`
+- 项目记忆：`docs/MEMORY.md`
