@@ -485,6 +485,7 @@ button {
 }
 
 .custom-pet-form input,
+.custom-pet-form select,
 .custom-pet-form textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -878,6 +879,49 @@ button {
   display: grid;
   gap: 8px;
   margin: 14px 0;
+}
+
+.annotated-photo-block {
+  margin-bottom: 14px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 253, 247, 0.92);
+  border: 1px solid rgba(143, 107, 79, 0.12);
+  box-shadow: 0 10px 24px rgba(121, 86, 53, 0.08);
+}
+
+.annotated-photo-image {
+  display: block;
+  width: 100%;
+  max-height: 460px;
+  object-fit: cover;
+  background: #fffef8;
+}
+
+.annotated-photo-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(255, 247, 234, 0.98), rgba(255, 253, 247, 0.98));
+}
+
+.annotated-photo-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(244, 170, 184, 0.16);
+  color: #9d6475;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.annotated-photo-meta strong {
+  color: var(--brown);
+  font-size: 14px;
 }
 
 .chat-layout {
