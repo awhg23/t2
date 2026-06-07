@@ -23,7 +23,7 @@
         <div class="pet-summary">
           <span id="activePetType">守护型</span>
           <div class="pet-name-row">
-            <h1 id="activePetName">鹿眠</h1>
+            <h1 id="activePetName">天禄</h1>
             <button class="name-edit-button" id="editPetNameBtn" type="button" aria-label="修改灵瑞名字">改名</button>
           </div>
           <form class="rename-form hidden" id="renamePetForm">
@@ -80,7 +80,7 @@
               <div class="current-pet-card">
                 <img id="homePetImage" alt="当前灵瑞" />
                 <div>
-                  <strong id="homePetName">鹿眠</strong>
+                  <strong id="homePetName">天禄</strong>
                   <p id="homePetTone">稳定、安抚、不强迫</p>
                   <button class="ghost-button" data-jump="pets">进入灵瑞管理</button>
                 </div>
@@ -249,16 +249,23 @@
         <section class="view" id="view-profile">
           <header class="page-head">
             <div>
-              <p class="eyebrow">用户画像</p>
-              <h2>属性、称号、记忆都由日常生成</h2>
+              <p class="eyebrow">成长面板</p>
+              <h2>用六边形看见灵宠的养成方向</h2>
             </div>
             <button class="ghost-button" id="clearMemoriesBtn">清空记忆</button>
           </header>
           <div class="grid two">
-            <article class="panel">
+            <article class="panel growth-panel">
               <div class="panel-title">
-                <h3>成长雷达</h3>
-                <span>Lv.1-Lv.10</span>
+                <h3>六维成长</h3>
+                <span id="growthMeta">成长中 · 总成长 0</span>
+              </div>
+              <div class="growth-headline">
+                <img id="growthPetImage" alt="成长面板灵宠" />
+                <div>
+                  <strong id="growthHeadline">初识灵友</strong>
+                  <p id="growthSummary">你的灵宠会随着聊天、上传、画像和穿搭慢慢长出独特的六维轮廓</p>
+                </div>
               </div>
               <div id="radarChart" class="radar-chart"></div>
             </article>
@@ -268,6 +275,23 @@
                 <span id="titleCount">0 个</span>
               </div>
               <div id="titleList" class="title-list"></div>
+              <div id="growthFocusTags" class="tag-row growth-focus-tags"></div>
+            </article>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <div class="panel-title">
+                <h3>六维详情</h3>
+                <span id="growthStageLabel">成长中</span>
+              </div>
+              <div id="attributeCards" class="attribute-card-grid"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-title">
+                <h3>最近成长</h3>
+                <span id="growthLogCount">0 条</span>
+              </div>
+              <div id="growthLogList" class="growth-log-list"></div>
             </article>
           </div>
           <article class="panel memory-panel">
@@ -294,6 +318,20 @@
               </div>
               <p id="personaIntro" class="persona-intro"></p>
               <div id="personaTags" class="tag-row"></div>
+              <div class="persona-growth-card">
+                <div class="persona-growth-head">
+                  <strong>六维人格卡</strong>
+                  <span id="shareGrowthPower">总成长 0</span>
+                </div>
+                <div class="persona-growth-layout">
+                  <div id="shareRadarChart" class="radar-chart radar-chart-compact"></div>
+                  <div class="persona-growth-copy">
+                    <strong id="shareGrowthTitle">初识灵友</strong>
+                    <p id="shareGrowthSummary">这里会同步展示灵宠当前最鲜明的成长方向</p>
+                    <div id="shareGrowthHighlights" class="growth-home-tags persona-growth-tags"></div>
+                  </div>
+                </div>
+              </div>
               <div class="privacy-note">仅链接可见；不分享原始聊天、原始图片、精确位置或联系方式。</div>
               <button class="primary-button full" id="generateLinkBtn">生成人格链接</button>
               <button class="secondary-button full" id="copyLinkBtn">复制人格链接</button>

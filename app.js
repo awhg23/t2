@@ -1,7 +1,7 @@
 const pets = {
   guardian: {
     type: "守护型",
-    name: "鹿眠",
+    name: "天禄",
     img: "./assets/pets/transparent/guardian.png",
     line: "我在这里，陪你把今天慢慢放稳。",
     tags: ["稳定", "信任", "夜间陪伴"],
@@ -14,7 +14,7 @@ const pets = {
   },
   vitality: {
     type: "活力型",
-    name: "栗冲",
+    name: "辟邪",
     img: "./assets/pets/transparent/vitality.png",
     line: "出发，先完成一个很小的挑战。",
     tags: ["元气", "探索", "行动力"],
@@ -27,7 +27,7 @@ const pets = {
   },
   wisdom: {
     type: "智慧型",
-    name: "星阅",
+    name: "白泽",
     img: "./assets/pets/transparent/wisdom.png",
     line: "我们把问题拆清楚，再决定下一步。",
     tags: ["观察", "推理", "策略"],
@@ -40,7 +40,7 @@ const pets = {
   },
   healing: {
     type: "治愈型",
-    name: "橡芽",
+    name: "玄龟",
     img: "./assets/pets/transparent/healing.png",
     line: "先照顾你，再处理事情。",
     tags: ["共情", "修复", "生活力"],
@@ -53,7 +53,7 @@ const pets = {
   },
   wonder: {
     type: "奇想型",
-    name: "梦铃",
+    name: "九尾",
     img: "./assets/pets/transparent/wonder.png",
     line: "把今天的碎片折成一颗灵感星星。",
     tags: ["梦境", "灵感", "创造力"],
@@ -81,40 +81,82 @@ const pets = {
 };
 
 const categories = {
-  study: { name: "学习", tags: ["书本", "笔记", "自习"], delta: { knowledge: 20, discipline: 8, order: 5 }, event: "书页发光" },
-  sport: { name: "运动", tags: ["操场", "能量", "身体"], delta: { sport: 20, exploration: 8, emotion: 5 }, event: "活力徽章" },
-  food: { name: "饮食", tags: ["三餐", "照料", "生活"], delta: { life: 15, emotion: 8, intimacy: 5 }, event: "晨光餐盘" },
-  scenery: { name: "风景", tags: ["天空", "校园", "漫游"], delta: { exploration: 18, creativity: 10, emotion: 5 }, event: "地图碎片" },
-  social: { name: "社交", tags: ["合照", "活动", "连接"], delta: { social: 20, exploration: 8, intimacy: 5 }, event: "人群灯火" },
-  creation: { name: "创作", tags: ["绘画", "代码", "灵感"], delta: { creativity: 20, knowledge: 8, order: 5 }, event: "灵感火花" },
-  emotion: { name: "情绪", tags: ["夜晚", "雨天", "独处"], delta: { emotion: 12, intimacy: 10, life: 5 }, event: "关怀提醒" },
-  organize: { name: "整理", tags: ["书桌", "房间", "计划"], delta: { order: 20, discipline: 10, life: 8 }, event: "清爽角落" },
+  study: { name: "学习", tags: ["书本", "笔记", "自习"], delta: { insight: 2, willpower: 1 }, event: "书页发光" },
+  sport: { name: "运动", tags: ["操场", "能量", "身体"], delta: { vitality: 2, courage: 1 }, event: "活力徽章" },
+  food: { name: "饮食", tags: ["三餐", "照料", "生活"], delta: { vitality: 1, affinity: 1 }, event: "晨光餐盘" },
+  scenery: { name: "风景", tags: ["天空", "校园", "漫游"], delta: { insight: 1, inspiration: 1 }, event: "地图碎片" },
+  social: { name: "社交", tags: ["合照", "活动", "连接"], delta: { affinity: 2 }, event: "人群灯火" },
+  creation: { name: "创作", tags: ["绘画", "代码", "灵感"], delta: { inspiration: 2, courage: 1 }, event: "灵感火花" },
+  emotion: { name: "情绪", tags: ["夜晚", "雨天", "独处"], delta: { insight: 2, affinity: 1 }, event: "关怀提醒" },
+  organize: { name: "整理", tags: ["书桌", "房间", "计划"], delta: { willpower: 2, vitality: 1 }, event: "清爽角落" },
 };
 
+const attributeOrder = ["courage", "inspiration", "affinity", "insight", "vitality", "willpower"];
+
 const attributes = {
-  discipline: "自律值",
-  exploration: "探索值",
-  emotion: "情绪稳定",
-  social: "社交能量",
-  creativity: "创造力",
-  knowledge: "知识值",
-  life: "生活力",
-  sport: "运动力",
-  intimacy: "关系亲密度",
-  order: "内在秩序感",
+  courage: {
+    label: "勇气",
+    short: "敢迈步",
+    description: "更愿意尝试、表达和主动迈出第一步",
+    color: "#f2af6b",
+  },
+  inspiration: {
+    label: "灵感",
+    short: "会创造",
+    description: "更擅长创作、审美和风格表达",
+    color: "#d5a7f6",
+  },
+  affinity: {
+    label: "亲和",
+    short: "会连接",
+    description: "更容易建立温暖连接和陪伴感",
+    color: "#f3a5b7",
+  },
+  insight: {
+    label: "洞察",
+    short: "会理解",
+    description: "更会观察、思考和理解自己与世界",
+    color: "#8ec9d8",
+  },
+  vitality: {
+    label: "活力",
+    short: "有节奏",
+    description: "更有生活能量、行动感和日常流动感",
+    color: "#97d7ad",
+  },
+  willpower: {
+    label: "意志",
+    short: "能坚持",
+    description: "更能长期坚持、稳定推进和慢慢变强",
+    color: "#f0cb73",
+  },
+};
+
+const petAttributeTemplates = {
+  guardian: { courage: 20, inspiration: 18, affinity: 30, insight: 22, vitality: 18, willpower: 28 },
+  vitality: { courage: 27, inspiration: 20, affinity: 22, insight: 18, vitality: 30, willpower: 18 },
+  wisdom: { courage: 18, inspiration: 21, affinity: 20, insight: 31, vitality: 16, willpower: 26 },
+  healing: { courage: 16, inspiration: 18, affinity: 31, insight: 27, vitality: 18, willpower: 22 },
+  wonder: { courage: 24, inspiration: 31, affinity: 18, insight: 20, vitality: 21, willpower: 16 },
+  zhangXuefeng: { courage: 28, inspiration: 19, affinity: 20, insight: 30, vitality: 24, willpower: 27 },
 };
 
 const titlesByAttr = {
-  discipline: ["晨光自律者", "稳定行动派", "正在找回节奏的人"],
-  exploration: ["校园探索者", "路线收集家", "等待风来的漫游者"],
-  emotion: ["温柔修复者", "静湖守护者", "需要一点阳光的夜行者"],
-  social: ["社团星火", "关系织光者", "还在学习表达的人"],
-  creativity: ["灵感收集师", "梦境造物者", "等待被点亮的灵感种子"],
-  knowledge: ["深夜思考家", "星图阅读者", "书页点灯人"],
-  life: ["温柔记录者", "生活修补师", "慢慢整理生活的人"],
-  sport: ["操场风声", "稳定奔跑者", "正在热身的行动者"],
-  intimacy: ["灵犀朋友", "共鸣同行者", "初识灵友"],
-  order: ["内在花园主", "清爽角落制造者", "还在长出秩序的人"],
+  courage: ["无畏探索家", "向前试试看的人", "还在积攒迈步的勇气"],
+  inspiration: ["梦境设计师", "灵感收集家", "等待被点亮的创意星火"],
+  affinity: ["心意共鸣者", "温柔关系制造者", "正在学着靠近彼此"],
+  insight: ["月光观察者", "安静思考家", "正在理解自己的旅人"],
+  vitality: ["晨风同行者", "生活节奏掌控者", "正在慢慢长回能量的人"],
+  willpower: ["缓慢而坚定的人", "长期成长派", "还在练习坚持的自己"],
+};
+
+const duoTitles = {
+  "affinity-insight": "温柔理解者",
+  "courage-inspiration": "奇想冒险家",
+  "vitality-willpower": "节奏掌控者",
+  "insight-willpower": "静水深流者",
+  "affinity-vitality": "暖阳陪伴者",
+  "courage-vitality": "向阳行动派",
 };
 
 const quiz = [
@@ -144,6 +186,13 @@ const petActionLabels = {
   jump: "开心",
   study: "学习",
   comfort: "安慰",
+};
+const presetLegacyNames = {
+  guardian: ["鹿眠"],
+  vitality: ["栗冲"],
+  wisdom: ["星阅"],
+  healing: ["橡芽"],
+  wonder: ["梦铃"],
 };
 const state = loadState();
 const achievementToastQueue = [];
@@ -334,10 +383,6 @@ const achievementCatalog = {
 };
 
 function defaultState() {
-  const attr = {};
-  Object.keys(attributes).forEach((key) => {
-    attr[key] = { exp: key === "intimacy" ? 35 : 20, level: 1 };
-  });
   return {
     activePet: "guardian",
     quizStep: 0,
@@ -351,9 +396,13 @@ function defaultState() {
     customPets: {},
     outfits: [],
     equippedOutfits: {},
-    attributes: attr,
+    attributes: createAttributesFromTemplate("guardian"),
+    attributeSystemVersion: 2,
+    growthLogs: [],
     achievements: {},
     personaLink: null,
+    personaIntro: "",
+    personaTags: [],
     importedPersona: null,
     streakDays: 1,
     stats: defaultStats(),
@@ -482,12 +531,154 @@ function isDelay(text) {
 }
 
 function levelFromExp(exp) {
-  const thresholds = [0, 60, 140, 260, 420, 620, 860, 1140, 1460, 1820];
+  const thresholds = [0, 21, 41, 61, 81];
   return thresholds.reduce((level, threshold, index) => (exp >= threshold ? index + 1 : level), 1);
 }
 
 function uniq(items) {
   return Array.from(new Set((items || []).filter(Boolean)));
+}
+
+function createAttributesFromTemplate(petKey = "guardian") {
+  const template = petAttributeTemplates[petKey] || petAttributeTemplates.guardian;
+  return Object.fromEntries(
+    attributeOrder.map((key) => {
+      const exp = template[key] ?? 20;
+      return [key, { exp, level: levelFromExp(exp) }];
+    }),
+  );
+}
+
+function sortedAttributes(input = state.attributes) {
+  return attributeOrder
+    .map((key) => [key, input[key] || { exp: 0, level: 1 }])
+    .sort((a, b) => b[1].exp - a[1].exp);
+}
+
+function totalAttributePower(input = state.attributes) {
+  return attributeOrder.reduce((sum, key) => sum + (input[key]?.exp || 0), 0);
+}
+
+function attributePercent(exp) {
+  return Math.max(0, Math.min(100, Math.round((exp / 100) * 100)));
+}
+
+function attributeStage(exp) {
+  if (exp >= 81) return "闪耀特质";
+  if (exp >= 61) return "非常突出";
+  if (exp >= 41) return "逐渐鲜明";
+  if (exp >= 21) return "成长中";
+  return "萌芽";
+}
+
+function topAttributeKeys(count = 2, input = state.attributes) {
+  return sortedAttributes(input)
+    .slice(0, count)
+    .map(([key]) => key);
+}
+
+function currentGrowthTitle(input = state.attributes) {
+  const [first, second] = topAttributeKeys(2, input);
+  const pairKey = [first, second].sort().join("-");
+  if (duoTitles[pairKey]) return duoTitles[pairKey];
+  return titlesByAttr[first]?.[0] || "初识灵友";
+}
+
+function currentGrowthSummary(input = state.attributes) {
+  const [first, second] = topAttributeKeys(2, input);
+  const templates = {
+    "affinity-insight": "你正在养成一只温柔而敏锐的陪伴型灵宠",
+    "courage-inspiration": "你的灵宠更像一个会冒险的创作搭子",
+    "vitality-willpower": "它正在成为节奏稳定、行动感很强的成长伙伴",
+    "insight-willpower": "这是一只会理解你，也会陪你慢慢变强的灵宠",
+    "affinity-vitality": "你的灵宠正在长成一个温暖又有生命力的同行者",
+    "courage-vitality": "它很适合带着你往前冲，一起把日常过得更有劲",
+  };
+  const pairKey = [first, second].sort().join("-");
+  return templates[pairKey] || `现在的 ${petName()} 更偏向${attributes[first].label}与${attributes[second].label}型成长`;
+}
+
+function currentGrowthStageLabel(input = state.attributes) {
+  const average = Math.round(totalAttributePower(input) / attributeOrder.length);
+  return attributeStage(average);
+}
+
+function attributeFocusTags(input = state.attributes) {
+  return topAttributeKeys(3, input).map((key) => `${attributes[key].label}领先`);
+}
+
+function shareGrowthHighlights(input = state.attributes) {
+  return sortedAttributes(input)
+    .slice(0, 3)
+    .map(([key, value]) => `${attributes[key].label} ${value.exp}`);
+}
+
+function sharePersonaFallbackIntro() {
+  const pet = getPet(state.activePet);
+  const [first, second] = topAttributeKeys(2);
+  return `这是一个带着${pet.type}气质、以「${attributes[first].label} × ${attributes[second].label}」为主轴的人格链接。它适合被熟人导入为一只${currentGrowthStageLabel()}的投影灵宠。`;
+}
+
+function growthDeltaEntries(deltas) {
+  return Object.entries(deltas || {}).filter(([key, value]) => Number(value) > 0 && attributes[key]);
+}
+
+function growthDeltaText(deltas) {
+  return growthDeltaEntries(deltas)
+    .map(([key, value]) => `${attributes[key].label}+${value}`)
+    .join(" · ");
+}
+
+function applyGrowth(deltas, { source = "system", label = "完成了一次成长互动", createdAt = new Date().toISOString(), skipLog = false } = {}) {
+  const entries = growthDeltaEntries(deltas).filter(([key]) => attributes[key]);
+  if (!entries.length) return;
+  entries.forEach(([key, amount]) => {
+    if (!state.attributes[key]) state.attributes[key] = { exp: 0, level: 1 };
+    state.attributes[key].exp = Math.max(0, Math.min(100, state.attributes[key].exp + amount));
+    state.attributes[key].level = levelFromExp(state.attributes[key].exp);
+  });
+  if (skipLog) return;
+  if (!Array.isArray(state.growthLogs)) state.growthLogs = [];
+  state.growthLogs.unshift({
+    id: crypto.randomUUID(),
+    source,
+    label,
+    deltas: Object.fromEntries(entries),
+    createdAt,
+  });
+  state.growthLogs = state.growthLogs.slice(0, 18);
+}
+
+function uploadGrowthLabel(categoryKey) {
+  return `上传了${categories[categoryKey]?.name || "日常"}照片`;
+}
+
+function chatGrowthDeltas(text, { isSameConversation = false } = {}) {
+  const deltas = { affinity: 1 };
+  if (text.trim().length >= 18 || /怎么办|为什么|计划|目标|焦虑|难过|复习|高考|选择|未来/.test(text)) {
+    deltas.affinity += 1;
+    deltas.insight = 2;
+  }
+  if (isSameConversation) deltas.willpower = (deltas.willpower || 0) + 1;
+  return deltas;
+}
+
+function outfitGrowthDeltas(description, { isFirst = false } = {}) {
+  const meta = analyzeOutfitDescription(description);
+  const deltas = { inspiration: isFirst ? 2 : 1 };
+  if (meta.isCustom) {
+    deltas.inspiration += 1;
+    deltas.courage = 1;
+  }
+  if (meta.hasCampusStyle) deltas.affinity = (deltas.affinity || 0) + 1;
+  if (meta.seasons.length) deltas.vitality = (deltas.vitality || 0) + 1;
+  return { meta, deltas };
+}
+
+function personaGrowthDeltas(nextCount) {
+  const deltas = { insight: nextCount === 1 ? 3 : 2 };
+  if (nextCount === 3) deltas.insight += 2;
+  return deltas;
 }
 
 function dateKey(input = new Date()) {
@@ -607,11 +798,107 @@ function analyzeOutfitDescription(description) {
   };
 }
 
+function usesLegacyAttributeModel() {
+  const keys = Object.keys(state.attributes || {});
+  return attributeOrder.some((key) => !keys.includes(key));
+}
+
+function replayGrowthFromHistory() {
+  state.attributes = createAttributesFromTemplate(state.activePet);
+  state.growthLogs = [];
+
+  [...(state.uploads || [])]
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+    .forEach((upload) => {
+      const categoryKey = upload.category || "study";
+      applyGrowth(categories[categoryKey]?.delta || {}, {
+        source: `upload-${categoryKey}`,
+        label: uploadGrowthLabel(categoryKey),
+        createdAt: upload.createdAt,
+      });
+    });
+
+  const userMessages = [...(state.messages || [])]
+    .filter((message) => message.role === "user")
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  let lastUserAt = null;
+  let currentTurns = 0;
+  let maxTurns = 0;
+  const chatDays = [];
+  userMessages.forEach((message) => {
+    const createdAt = new Date(message.createdAt || Date.now());
+    const isSameConversation = lastUserAt && createdAt - lastUserAt <= 6 * 60 * 60 * 1000;
+    currentTurns = isSameConversation ? currentTurns + 1 : 1;
+    maxTurns = Math.max(maxTurns, currentTurns);
+    chatDays.push(dateKey(createdAt));
+    applyGrowth(chatGrowthDeltas(message.text || "", { isSameConversation }), {
+      source: "chat-message",
+      label: isSameConversation ? "继续和灵瑞谈心" : "和灵瑞聊了聊",
+      createdAt: message.createdAt,
+    });
+    lastUserAt = createdAt;
+  });
+  if (maxTurns >= 20) {
+    applyGrowth(
+      { insight: 2, willpower: 2 },
+      { source: "chat-marathon", label: "完成了一次超长谈心", createdAt: userMessages[userMessages.length - 1]?.createdAt },
+    );
+  }
+  if (consecutiveDayCount(chatDays) >= 3) {
+    applyGrowth(
+      { willpower: 3 },
+      { source: "chat-streak", label: "连续多天保持了对话", createdAt: userMessages[userMessages.length - 1]?.createdAt },
+    );
+  }
+
+  [...(state.outfits || [])]
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+    .forEach((outfit, index) => {
+      const { deltas } = outfitGrowthDeltas(outfit.description, { isFirst: index === 0 });
+      applyGrowth(deltas, {
+        source: "outfit-generate",
+        label: index === 0 ? "第一次给灵宠定制服饰" : "更新了灵宠穿搭",
+        createdAt: outfit.createdAt,
+      });
+    });
+
+  const personaCount = Math.max(state.stats?.personaGenerations || 0, state.personaLink ? 1 : 0);
+  Array.from({ length: personaCount }).forEach((_, index) => {
+    applyGrowth(personaGrowthDeltas(index + 1), {
+      source: "persona-generate",
+      label: index === 0 ? "第一次生成成长画像" : "更新了成长画像",
+      skipLog: index < Math.max(0, personaCount - 2),
+    });
+  });
+
+  const shareCount = Math.max(state.stats?.shareActions || 0, state.personaLink ? 1 : 0);
+  Array.from({ length: shareCount }).forEach((_, index) => {
+    applyGrowth(
+      { affinity: 1 },
+      {
+        source: "share-link",
+        label: index === 0 ? "生成了人格链接" : "分享了人格链接",
+        skipLog: index < Math.max(0, shareCount - 2),
+      },
+    );
+  });
+}
+
 function ensureStateShape() {
   if (!state.uploads) state.uploads = [];
   if (!state.memories) state.memories = [];
   if (!state.messages) state.messages = [];
   if (!state.petNames) state.petNames = {};
+  presetPetOrder.forEach((key) => {
+    const savedName = state.petNames[key];
+    if (!savedName) {
+      state.petNames[key] = pets[key].name;
+      return;
+    }
+    if (presetLegacyNames[key]?.includes(savedName)) {
+      state.petNames[key] = pets[key].name;
+    }
+  });
   if (!state.petActionByPet || typeof state.petActionByPet !== "object") state.petActionByPet = {};
   presetPetOrder.forEach((key) => {
     if (!state.petActionByPet[key]) state.petActionByPet[key] = "idle";
@@ -619,12 +906,23 @@ function ensureStateShape() {
   if (!state.customPets || typeof state.customPets !== "object") state.customPets = {};
   if (!state.outfits) state.outfits = [];
   if (!state.equippedOutfits) state.equippedOutfits = {};
+  if (!Array.isArray(state.growthLogs)) state.growthLogs = [];
   if (!state.achievements || typeof state.achievements !== "object") state.achievements = {};
+  if (!Array.isArray(state.personaTags)) state.personaTags = [];
+  if (typeof state.personaIntro !== "string") state.personaIntro = "";
   state.stats = { ...defaultStats(), ...(state.stats || {}) };
   state.stats.chatDays = uniq(state.stats.chatDays);
   state.stats.outfitStyleTags = uniq(state.stats.outfitStyleTags);
   state.stats.outfitSeasonTags = uniq(state.stats.outfitSeasonTags);
   state.stats.outfitColorTags = uniq(state.stats.outfitColorTags);
+  if (usesLegacyAttributeModel()) {
+    replayGrowthFromHistory();
+  } else {
+    attributeOrder.forEach((key) => {
+      if (!state.attributes[key]) state.attributes[key] = { exp: 0, level: 1 };
+      state.attributes[key].level = levelFromExp(state.attributes[key].exp);
+    });
+  }
 }
 
 function rebuildStatsFromState() {
@@ -849,22 +1147,93 @@ function renderOutfits() {
 }
 
 function renderAttributes() {
-  Object.entries(state.attributes).forEach(([, value]) => {
-    value.level = levelFromExp(value.exp);
-  });
-  const sorted = Object.entries(state.attributes).sort((a, b) => b[1].exp - a[1].exp);
-  $("#topAttributes").innerHTML = sorted
-    .slice(0, 5)
-    .map(([key, value]) => attributeRow(key, value))
-    .join("");
-  $("#radarChart").innerHTML = Object.entries(state.attributes)
-    .map(([key, value]) => `<div class="radar-row">${attributeRow(key, value)}</div>`)
-    .join("");
+  const sorted = sortedAttributes();
+  const latest = state.growthLogs?.[0];
+  $("#todayDelta").textContent = latest ? latest.label : "等待第一次成长";
+  $("#topAttributes").innerHTML = `
+    <div class="growth-home-summary">
+      <div class="growth-home-head">
+        <div>
+          <strong>${currentGrowthTitle()}</strong>
+          <p>${currentGrowthSummary()}</p>
+        </div>
+        <span>${currentGrowthStageLabel()}</span>
+      </div>
+      <div class="attribute-mini-list">
+        ${sorted
+          .slice(0, 3)
+          .map(([key, value]) => `<div class="attribute-mini-item"><span>${attributes[key].label}</span><strong>${value.exp}</strong></div>`)
+          .join("")}
+      </div>
+      <div class="growth-home-tags">${attributeFocusTags()
+        .map((tag) => `<span>${tag}</span>`)
+        .join("")}</div>
+    </div>
+  `;
 }
 
 function attributeRow(key, value) {
-  const percent = Math.min(100, Math.round((value.exp / 1820) * 100));
-  return `<span>${attributes[key]}</span><div class="meter"><i style="width:${percent}%"></i></div><strong>Lv.${value.level}</strong>`;
+  return `<span>${attributes[key].label}</span><div class="meter"><i style="width:${attributePercent(value.exp)}%"></i></div><strong>${value.exp}</strong>`;
+}
+
+function radarPoint(cx, cy, radius, angle) {
+  return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius];
+}
+
+function buildRadarSvg(input = state.attributes, { size = 340, coreLabel = "成长", showLabels = true, svgClass = "" } = {}) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const outer = size * 0.31;
+  const startAngle = -Math.PI / 2;
+  const angles = attributeOrder.map((_, index) => startAngle + (Math.PI * 2 * index) / attributeOrder.length);
+  const gradientId = `radar-fill-${Math.random().toString(36).slice(2, 8)}`;
+  const rings = [0.2, 0.4, 0.6, 0.8, 1];
+  const ringPolygons = rings
+    .map((ratio) => angles.map((angle) => radarPoint(cx, cy, outer * ratio, angle).join(",")).join(" "))
+    .map((points) => `<polygon points="${points}" class="radar-ring" />`)
+    .join("");
+  const axes = angles
+    .map((angle) => {
+      const [x, y] = radarPoint(cx, cy, outer, angle);
+      return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" class="radar-axis" />`;
+    })
+    .join("");
+  const valuePoints = attributeOrder
+    .map((key, index) => radarPoint(cx, cy, outer * ((input[key]?.exp || 0) / 100), angles[index]).join(","))
+    .join(" ");
+  const vertices = showLabels
+    ? attributeOrder
+        .map((key, index) => {
+          const [x, y] = radarPoint(cx, cy, outer + 18, angles[index]);
+          const textAnchor = x < cx - 6 ? "end" : x > cx + 6 ? "start" : "middle";
+          return `<g>
+        <text x="${x}" y="${y}" text-anchor="${textAnchor}" class="radar-label">${attributes[key].label}</text>
+      </g>`;
+        })
+        .join("")
+    : "";
+  const svgClasses = ["radar-svg", svgClass].filter(Boolean).join(" ");
+  return `<svg viewBox="0 0 ${size} ${size}" class="${svgClasses}" aria-label="六维成长雷达图">
+    <defs>
+      <linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="rgba(168, 217, 191, 0.82)" />
+        <stop offset="100%" stop-color="rgba(244, 170, 184, 0.72)" />
+      </linearGradient>
+    </defs>
+    ${ringPolygons}
+    ${axes}
+    <polygon points="${valuePoints}" class="radar-shape" style="fill:url(#${gradientId});" />
+    ${attributeOrder
+      .map((key, index) => {
+        const [x, y] = radarPoint(cx, cy, outer * ((input[key]?.exp || 0) / 100), angles[index]);
+        return `<circle cx="${x}" cy="${y}" r="4" class="radar-dot" />`;
+      })
+      .join("")}
+    <circle cx="${cx}" cy="${cy}" r="28" class="radar-core" />
+    <text x="${cx}" y="${cy - 2}" text-anchor="middle" class="radar-core-title">${coreLabel}</text>
+    <text x="${cx}" y="${cy + 14}" text-anchor="middle" class="radar-core-value">${totalAttributePower(input)}</text>
+    ${vertices}
+  </svg>`;
 }
 
 function renderQuiz() {
@@ -899,11 +1268,11 @@ function bestPetFromScores() {
 
 function recommendReason(key) {
   const reasons = {
-    guardian: "你更需要稳定、信任和低压力陪伴。鹿眠会先帮你把节奏放慢，再陪你一点点恢复秩序。",
-    vitality: "你更需要行动力和外部推动。栗冲会把目标变成小挑战，陪你从很小的一步开始。",
-    wisdom: "你更需要分析、规划和清晰感。星阅会帮你拆解问题、记录线索、找到下一步。",
-    healing: "你更需要共情、照料和恢复。橡芽会先照顾你的感受，再陪你慢慢长回能量。",
-    wonder: "你更需要灵感和表达。梦铃会把日常变成故事，把情绪转成可被创作的材料。",
+    guardian: "你更需要稳定、信任和低压力陪伴。天禄会先帮你把节奏放慢，再陪你一点点恢复秩序。",
+    vitality: "你更需要行动力和外部推动。辟邪会把目标变成小挑战，陪你从很小的一步开始。",
+    wisdom: "你更需要分析、规划和清晰感。白泽会帮你拆解问题、记录线索、找到下一步。",
+    healing: "你更需要共情、照料和恢复。玄龟会先照顾你的感受，再陪你慢慢长回能量。",
+    wonder: "你更需要灵感和表达。九尾会把日常变成故事，把情绪转成可被创作的材料。",
   };
   return reasons[key];
 }
@@ -978,11 +1347,7 @@ async function analyzeUpload() {
   const categoryKey = apiResult?.category || state.selectedCategory;
   const category = categories[categoryKey];
   const confidence = apiResult?.confidence || (input.files.length ? 0.86 : 0.62);
-  const deltas = { ...category.delta, intimacy: (category.delta.intimacy || 0) + 5 };
-  Object.entries(deltas).forEach(([key, amount]) => {
-    if (!state.attributes[key]) state.attributes[key] = { exp: 0, level: 1 };
-    state.attributes[key].exp += amount;
-  });
+  const deltas = { ...category.delta };
   const record = {
     id: crypto.randomUUID(),
     category: categoryKey,
@@ -992,14 +1357,15 @@ async function analyzeUpload() {
     createdAt: new Date().toISOString(),
   };
   state.uploads.unshift(record);
-  $("#todayDelta").textContent = `${category.name}照片 · ${Object.keys(deltas).length} 项成长`;
+  applyGrowth(deltas, { source: `upload-${categoryKey}`, label: uploadGrowthLabel(categoryKey), createdAt: record.createdAt });
+  $("#todayDelta").textContent = uploadGrowthLabel(categoryKey);
   $("#confidenceText").textContent = `置信度 ${Math.round(confidence * 100)}%`;
   $("#analysisResult").className = "analysis-card";
   $("#analysisResult").innerHTML = `<span class="tag">${category.name} · ${apiResult ? "大模型识别" : "本地回退"}</span>
     <h3>${record.event}</h3>
     <p>${apiResult?.feedback || photoFeedback(categoryKey)}</p>
     <div class="delta-list">${Object.entries(deltas)
-      .map(([key, value]) => `<div class="attribute-row"><span>${attributes[key]}</span><div class="meter"><i style="width:${Math.min(value * 4, 100)}%"></i></div><strong>+${value}</strong></div>`)
+      .map(([key, value]) => `<div class="attribute-row"><span>${attributes[key].label}</span><div class="meter"><i style="width:${Math.min(value * 25, 100)}%"></i></div><strong>+${value}</strong></div>`)
       .join("")}</div>
     <p>画像标签：${record.tags.join("、")}${apiResult?.emotionSignals?.length ? `；情绪线索：${apiResult.emotionSignals.join("、")}` : ""}</p>`;
   triggerGaokaoCheerIfNeeded();
@@ -1040,12 +1406,14 @@ async function sendChat(text) {
   const now = new Date();
   const lastUserAt = state.stats.lastUserChatAt ? new Date(state.stats.lastUserChatAt) : null;
   const isSameConversation = lastUserAt && now - lastUserAt <= 6 * 60 * 60 * 1000;
+  const previousTurns = state.stats.currentConversationTurns;
+  const previousStreak = longestChatStreak();
   state.stats.userChatCount += 1;
   state.stats.currentConversationTurns = isSameConversation ? state.stats.currentConversationTurns + 1 : 1;
   state.stats.maxConversationTurns = Math.max(state.stats.maxConversationTurns, state.stats.currentConversationTurns);
   state.stats.lastUserChatAt = now.toISOString();
   state.stats.chatDays = uniq([...state.stats.chatDays, dateKey(now)]);
-  state.messages.push({ role: "user", text, createdAt: new Date().toISOString() });
+  state.messages.push({ role: "user", text, createdAt: now.toISOString() });
   state.messages.push({ role: "pet", pet: petKey, text: "我正在认真听你说，等我组织一下回应...", pending: true, createdAt: new Date().toISOString() });
   renderChat();
   let reply;
@@ -1080,7 +1448,17 @@ async function sendChat(text) {
     summary: memorySummary || `你最近提到：${text.slice(0, 34)}。偏好的支持方式：${getPet(petKey).tone}。`,
     tag: `${getPet(petKey).type} · ${provider}`,
   });
-  state.attributes.intimacy.exp += 8;
+  applyGrowth(chatGrowthDeltas(text, { isSameConversation }), {
+    source: "chat-message",
+    label: isSameConversation ? "继续和灵宠聊了聊" : "和灵宠开启了一次新对话",
+    createdAt: now.toISOString(),
+  });
+  if (previousTurns < 19 && state.stats.currentConversationTurns >= 20) {
+    applyGrowth({ insight: 2, willpower: 2 }, { source: "chat-marathon", label: "完成了一次超长谈心", createdAt: now.toISOString() });
+  }
+  if (previousStreak < 3 && longestChatStreak() >= 3) {
+    applyGrowth({ willpower: 3 }, { source: "chat-streak", label: "连续 3 天保持了聊天陪伴", createdAt: now.toISOString() });
+  }
   triggerGaokaoCheerIfNeeded();
   syncAchievements();
   saveState();
@@ -1089,8 +1467,39 @@ async function sendChat(text) {
 
 function renderProfile() {
   const titles = generateTitles();
+  $("#growthPetImage").src = activePetImage();
+  $("#growthHeadline").textContent = currentGrowthTitle();
+  $("#growthSummary").textContent = currentGrowthSummary();
+  $("#growthMeta").textContent = `${currentGrowthStageLabel()} · 总成长 ${totalAttributePower()}`;
+  $("#growthStageLabel").textContent = currentGrowthStageLabel();
+  $("#radarChart").innerHTML = buildRadarSvg(state.attributes);
   $("#titleCount").textContent = `${titles.length} 个`;
   $("#titleList").innerHTML = titles.map((title) => `<span>${title}</span>`).join("");
+  $("#growthFocusTags").innerHTML = attributeFocusTags()
+    .map((tag) => `<span>${tag}</span>`)
+    .join("");
+  $("#attributeCards").innerHTML = attributeOrder
+    .map((key) => {
+      const value = state.attributes[key];
+      return `<article class="attribute-card">
+        <div class="attribute-card-head">
+          <strong>${attributes[key].label}</strong>
+          <span>${attributeStage(value.exp)}</span>
+        </div>
+        <p>${attributes[key].description}</p>
+        <div class="attribute-card-meter"><i style="width:${attributePercent(value.exp)}%; background:${attributes[key].color};"></i></div>
+        <div class="attribute-card-meta"><span>${attributes[key].short}</span><strong>${value.exp}</strong></div>
+      </article>`;
+    })
+    .join("");
+  $("#growthLogCount").textContent = `${state.growthLogs.length} 条`;
+  $("#growthLogList").innerHTML = state.growthLogs.length
+    ? state.growthLogs
+        .map(
+          (log) => `<div class="growth-log-item"><div><strong>${escapeHtml(log.label)}</strong><p>${growthDeltaText(log.deltas)}</p></div><span>${formatGrowthDate(log.createdAt)}</span></div>`,
+        )
+        .join("")
+    : `<div class="analysis-empty">还没有成长记录。去上传、聊天或给灵宠换装吧。</div>`;
   $("#memoryList").innerHTML = state.memories.length
     ? state.memories
         .map((memory) => `<div class="memory-item"><div><span>${memory.tag}</span><p>${escapeHtml(memory.summary)}</p></div><button data-delete-memory="${memory.id}">删除</button></div>`)
@@ -1099,28 +1508,42 @@ function renderProfile() {
 }
 
 function generateTitles() {
-  const sorted = Object.entries(state.attributes).sort((a, b) => b[1].exp - a[1].exp);
-  const high = sorted[0]?.[0] || "discipline";
-  const low = sorted[sorted.length - 1]?.[0] || "emotion";
+  const sorted = sortedAttributes();
+  const high = sorted[0]?.[0] || "affinity";
+  const low = sorted[sorted.length - 1]?.[0] || "courage";
   const uploadTitle = state.uploads[0] ? `${categories[state.uploads[0].category].name}记录者` : "初识灵友";
   const companion = state.streakDays >= 7 ? "七日同伴" : "初识灵友";
-  return [titlesByAttr[high][0], titlesByAttr[high][1], titlesByAttr[low][2], uploadTitle, companion];
+  return [currentGrowthTitle(), titlesByAttr[high][1], titlesByAttr[low][2], uploadTitle, companion];
 }
 
 function renderShare() {
   const completeness = Math.min(100, Math.round(state.uploads.length * 8 + state.memories.length * 6 + 20));
-  const top = Object.entries(state.attributes).sort((a, b) => b[1].exp - a[1].exp)[0][0];
+  const top = sortedAttributes()[0][0];
   const pet = getPet(state.activePet);
   $("#personaCompleteness").textContent = `画像完整度 ${completeness}%`;
   $("#personaIntro").textContent =
-    state.personaIntro || `这是一个带着${pet.type}气质、正在积累「${attributes[top]}」的人格链接。它适合被熟人导入为一只温和的人格投影宠物。`;
-  const visibleTags = state.personaTags?.length ? state.personaTags : [...pet.tags, attributes[top], ...generateTitles().slice(0, 2)];
+    state.personaIntro || sharePersonaFallbackIntro();
+  const visibleTags = state.personaTags?.length ? state.personaTags : [...pet.tags, attributes[top].label, ...generateTitles().slice(0, 2)];
   $("#personaTags").innerHTML = visibleTags.map((tag) => `<span>${escapeHtml(String(tag))}</span>`).join("");
+  $("#shareGrowthPower").textContent = `总成长 ${totalAttributePower()}`;
+  $("#shareGrowthTitle").textContent = currentGrowthTitle();
+  $("#shareGrowthSummary").textContent = currentGrowthSummary();
+  $("#shareGrowthHighlights").innerHTML = shareGrowthHighlights()
+    .map((item) => `<span>${escapeHtml(item)}</span>`)
+    .join("");
+  $("#shareRadarChart").innerHTML = buildRadarSvg(state.attributes, {
+    size: 244,
+    coreLabel: "人格",
+    showLabels: false,
+    svgClass: "radar-svg-compact",
+  });
   $("#linkStatus").textContent = state.personaLink ? "已生成" : "尚未生成";
   $("#linkBox").textContent = state.personaLink || "生成后会出现可复制链接。";
   $("#copyLinkBtn").textContent = state.personaLink ? "复制人格链接" : "先生成后复制";
   $("#dualPetBox").innerHTML = state.importedPersona
-    ? `<strong>双宠对话</strong><p>${petName()}：我们适合一起做一件低压力的小事。</p><p>投影灵宠：我建议今天互相分享一张天空或书桌照。</p><strong>关系报告</strong><p>共同点：都需要被温和理解。适合一起做：自习、散步、轻量创作。</p>`
+    ? `<strong>双宠对话</strong><p>${petName()}：我们都更擅长用${attributes[top].label}来理解最近的生活。</p><p>投影灵宠：那就先分享一张今天最有感觉的照片，再各自说一句感受。</p><strong>关系报告</strong><p>当前人格主轴：${topAttributeKeys(2)
+        .map((key) => attributes[key].label)
+        .join(" / ")}。适合一起做：自习、散步、轻量创作。</p>`
     : "导入后会生成投影宠物、双宠对话和关系报告。";
 }
 
@@ -1139,8 +1562,14 @@ async function generatePersonaLink() {
     console.warn("persona API fallback:", error.message);
   }
   state.personaLink = `${location.origin}${location.pathname}#persona-${crypto.randomUUID().slice(0, 8)}`;
+  const nextPersonaCount = state.stats.personaGenerations + 1;
   state.stats.personaGenerations += 1;
   state.stats.shareActions += 1;
+  applyGrowth(personaGrowthDeltas(nextPersonaCount), {
+    source: "persona-generate",
+    label: nextPersonaCount === 1 ? "第一次生成了成长画像" : "更新了成长画像",
+  });
+  applyGrowth({ affinity: 1 }, { source: "share-link", label: "生成人格链接，准备分享给朋友" });
   if (persona?.intro) state.personaIntro = persona.intro;
   if (Array.isArray(persona?.tags)) state.personaTags = persona.tags.slice(0, 8);
   if (!persona?.intro) state.personaIntro = fallbackIntro;
@@ -1156,6 +1585,7 @@ async function copyPersonaLink() {
   try {
     await navigator.clipboard.writeText(state.personaLink);
     state.stats.shareActions += 1;
+    applyGrowth({ affinity: 1 }, { source: "share-copy", label: "复制了人格链接" });
     syncAchievements();
     saveState();
     renderAll();
@@ -1205,12 +1635,17 @@ async function generateOutfit() {
     if (!state.equippedOutfits) state.equippedOutfits = {};
     state.outfits.unshift(outfit);
     state.equippedOutfits[state.activePet] = outfit.id;
-    const meta = analyzeOutfitDescription(description);
+    const { meta, deltas } = outfitGrowthDeltas(description, { isFirst: state.outfits.length === 1 });
     state.stats.outfitStyleTags = uniq([...state.stats.outfitStyleTags, ...meta.styles]);
     state.stats.outfitSeasonTags = uniq([...state.stats.outfitSeasonTags, ...meta.seasons]);
     state.stats.outfitColorTags = uniq([...state.stats.outfitColorTags, ...meta.colors]);
     state.stats.hasCampusOutfit = Boolean(state.stats.hasCampusOutfit || meta.hasCampusStyle);
     if (meta.isCustom) state.stats.customOutfitCount += 1;
+    applyGrowth(deltas, {
+      source: "outfit-generate",
+      label: state.outfits.length === 1 ? "第一次给灵宠定制服饰" : "又完成了一套新穿搭",
+      createdAt: outfit.createdAt,
+    });
     triggerGaokaoCheerIfNeeded();
     syncAchievements();
     saveState();
@@ -1369,6 +1804,12 @@ function formatAchievementDate(value) {
   return `${date.getMonth() + 1}月${date.getDate()}日解锁`;
 }
 
+function formatGrowthDate(value) {
+  if (!value) return "刚刚";
+  const date = new Date(value);
+  return `${date.getMonth() + 1}月${date.getDate()}日记录`;
+}
+
 function renderAchievements() {
   const entries = Object.entries(achievementCatalog);
   const unlockedCount = entries.filter(([id]) => Boolean(state.achievements[id])).length;
@@ -1491,7 +1932,13 @@ document.addEventListener("click", (event) => {
     renderQuiz();
   }
   if (target.dataset.confirmPet) {
+    const hasProgress =
+      (state.growthLogs && state.growthLogs.length > 0) ||
+      (state.uploads && state.uploads.length > 0) ||
+      (state.messages && state.messages.length > 0) ||
+      (state.outfits && state.outfits.length > 0);
     state.activePet = target.dataset.confirmPet;
+    if (!hasProgress) state.attributes = createAttributesFromTemplate(target.dataset.confirmPet);
     state.stats.quizCompleted = true;
     state.stats.quizCompletedAt = new Date().toISOString();
     syncAchievements();
@@ -1605,6 +2052,8 @@ $("#resetAchievementsBtn").addEventListener("click", () => {
 
 $("#deleteLinkBtn").addEventListener("click", () => {
   state.personaLink = null;
+  state.personaIntro = "";
+  state.personaTags = [];
   state.importedPersona = null;
   saveState();
   renderShare();

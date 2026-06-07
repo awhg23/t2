@@ -25,11 +25,11 @@ const MIME = {
 };
 
 const petProfiles = {
-  guardian: "守护型鹿眠：稳定、安抚、陪伴，不强迫用户，像可靠的宿舍守护者。",
-  vitality: "活力型栗冲：元气、主动、行动力强，把目标变成很小的挑战。",
-  wisdom: "智慧型星阅：理性、观察、拆解问题，提供清晰步骤和复盘。",
-  healing: "治愈型橡芽：共情、温柔、允许休息，先照顾感受再处理事情。",
-  wonder: "奇想型梦铃：幻想化、梦境感、创造力强，把情绪转成画面和灵感。",
+  guardian: "守护型天禄：稳定、安抚、陪伴，不强迫用户，像可靠的宿舍守护者。",
+  vitality: "活力型辟邪：元气、主动、行动力强，把目标变成很小的挑战。",
+  wisdom: "智慧型白泽：理性、观察、拆解问题，提供清晰步骤和复盘。",
+  healing: "治愈型玄龟：共情、温柔、允许休息，先照顾感受再处理事情。",
+  wonder: "奇想型九尾：幻想化、梦境感、创造力强，把情绪转成画面和灵感。",
   zhangXuefeng: "高考导师型张雪峰老师：帅气、直给、清醒、提气，先说高考加油，再帮用户看清选择并给出可执行步骤。",
 };
 
@@ -189,9 +189,9 @@ function cleanModelText(text) {
   if (chineseLines.length) return chineseLines[chineseLines.length - 1];
 
   return raw
-    .replace(/^\s*The user wants[\s\S]*?(?=灵瑞|我|你|鹿眠|栗冲|星阅|橡芽|梦铃|$)/i, "")
-    .replace(/^\s*The system prompt[\s\S]*?(?=灵瑞|我|你|鹿眠|栗冲|星阅|橡芽|梦铃|$)/i, "")
-    .replace(/^\s*We need[\s\S]*?(?=灵瑞|我|你|鹿眠|栗冲|星阅|橡芽|梦铃|$)/i, "")
+    .replace(/^\s*The user wants[\s\S]*?(?=灵瑞|我|你|天禄|辟邪|白泽|玄龟|九尾|$)/i, "")
+    .replace(/^\s*The system prompt[\s\S]*?(?=灵瑞|我|你|天禄|辟邪|白泽|玄龟|九尾|$)/i, "")
+    .replace(/^\s*We need[\s\S]*?(?=灵瑞|我|你|天禄|辟邪|白泽|玄龟|九尾|$)/i, "")
     .trim();
 }
 
