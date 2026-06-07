@@ -1310,6 +1310,8 @@ function fileToDataUrl(file) {
 }
 
 function urlToDataUrl(url) {
+  if (!url) return Promise.resolve(null);
+  if (String(url).startsWith("data:")) return Promise.resolve(url);
   return fetch(url)
     .then((response) => {
       if (!response.ok) throw new Error(`Failed to load reference image: ${response.status}`);
@@ -1326,52 +1328,101 @@ function urlToDataUrl(url) {
     );
 }
 
-async function analyzeUpload() {
-  const input = $("#photoInput");
-  $("#analyzeBtn").disabled = true;
-  $("#analyzeBtn").textContent = "AI 正在识别...";
-  let apiResult = null;
-  try {
-    apiResult = await postJson("/api/images/analyze", {
-      selectedCategory: state.selectedCategory,
-      imageData: await fileToDataUrl(input.files[0]),
-      petKey: state.activePet,
-    });
-  } catch (error) {
-    console.warn("image API fallback:", error.message);
-  } finally {
-    $("#analyzeBtn").disabled = false;
-    $("#analyzeBtn").textContent = "AI 识别并结算成长";
-  }
-
-  const categoryKey = apiResult?.category || state.selectedCategory;
-  const category = categories[categoryKey];
-  const confidence = apiResult?.confidence || (input.files.length ? 0.86 : 0.62);
-  const deltas = { ...category.delta };
-  const record = {
-    id: crypto.randomUUID(),
-    category: categoryKey,
-    tags: apiResult?.tags?.length ? apiResult.tags : category.tags,
-    confidence,
-    event: apiResult?.event || category.event,
-    createdAt: new Date().toISOString(),
-  };
-  state.uploads.unshift(record);
-  applyGrowth(deltas, { source: `upload-${categoryKey}`, label: uploadGrowthLabel(categoryKey), createdAt: record.createdAt });
-  $("#todayDelta").textContent = uploadGrowthLabel(categoryKey);
-  $("#confidenceText").textContent = `置信度 ${Math.round(confidence * 100)}%`;
-  $("#analysisResult").className = "analysis-card";
-  $("#analysisResult").innerHTML = `<span class="tag">${category.name} · ${apiResult ? "大模型识别" : "本地回退"}</span>
+function renderUploadAnalysis({ category, apiResult, deltas, record, annotateResult }) {
+  const cuteImageBlock = record.annotatedImageUrl
+    ? `<div class="annotated-photo-block">
+        <img class="annotated-photo-image" src="${record.annotatedImageUrl}" alt="${escapeHtml(record.event)} 批注返图" />
+        <div class="annotated-photo-meta">
+          <span>${annotateResult?.provider === "openai-overlay" ? "灵宠可爱返图" : "本地可爱返图"}</span>
+          <strong>${escapeHtml((annotateResult?.plan?.headline || record.event || "").slice(0, 24))}</strong>
+        </div>
+      </div>`
+    : "";
+  return `${cuteImageBlock}
+    <span class="tag">${category.name} · ${apiResult ? "大模型识别" : "本地回退"}</span>
     <h3>${record.event}</h3>
-    <p>${apiResult?.feedback || photoFeedback(categoryKey)}</p>
+    <p>${apiResult?.feedback || photoFeedback(record.category)}</p>
     <div class="delta-list">${Object.entries(deltas)
       .map(([key, value]) => `<div class="attribute-row"><span>${attributes[key].label}</span><div class="meter"><i style="width:${Math.min(value * 25, 100)}%"></i></div><strong>+${value}</strong></div>`)
       .join("")}</div>
     <p>画像标签：${record.tags.join("、")}${apiResult?.emotionSignals?.length ? `；情绪线索：${apiResult.emotionSignals.join("、")}` : ""}</p>`;
-  triggerGaokaoCheerIfNeeded();
-  syncAchievements();
-  saveState();
-  renderAll();
+}
+
+async function analyzeUpload() {
+  const input = $("#photoInput");
+  const imageData = await fileToDataUrl(input.files[0]);
+  const activePet = getPet(state.activePet);
+  $("#analyzeBtn").disabled = true;
+  $("#analyzeBtn").textContent = "AI 正在识别...";
+  try {
+    let apiResult = null;
+    let annotateResult = null;
+    try {
+      apiResult = await postJson("/api/images/analyze", {
+        selectedCategory: state.selectedCategory,
+        imageData,
+        petKey: state.activePet,
+      });
+    } catch (error) {
+      console.warn("image API fallback:", error.message);
+    }
+    const categoryKey = apiResult?.category || state.selectedCategory;
+    const category = categories[categoryKey];
+    const confidence = apiResult?.confidence || (input.files.length ? 0.86 : 0.62);
+    const deltas = { ...category.delta };
+    const record = {
+      id: crypto.randomUUID(),
+      category: categoryKey,
+      tags: apiResult?.tags?.length ? apiResult.tags : category.tags,
+      confidence,
+      event: apiResult?.event || category.event,
+      annotatedImageUrl: "",
+      createdAt: new Date().toISOString(),
+    };
+    if (imageData) {
+      $("#analyzeBtn").textContent = "AI 正在画宠物批注...";
+      try {
+        annotateResult = await postJson("/api/images/annotate", {
+          imageData,
+          selectedCategory: categoryKey,
+          analyzeResult: {
+            category: categoryKey,
+            tags: record.tags,
+            emotionSignals: apiResult?.emotionSignals || [],
+            feedback: apiResult?.feedback || photoFeedback(categoryKey),
+            event: record.event,
+          },
+          petKey: state.activePet,
+          petName: petName(),
+          petType: activePet.type,
+          petImage: await urlToDataUrl(activePetImage()).catch((error) => {
+            console.warn("pet image overlay fallback:", error.message);
+            return null;
+          }),
+        });
+        record.annotatedImageUrl = annotateResult.imageUrl || "";
+      } catch (error) {
+        console.warn("annotated image API fallback:", error.message);
+      }
+    }
+    state.uploads.unshift(record);
+    applyGrowth(deltas, { source: `upload-${categoryKey}`, label: uploadGrowthLabel(categoryKey), createdAt: record.createdAt });
+    $("#todayDelta").textContent = uploadGrowthLabel(categoryKey);
+    $("#confidenceText").textContent = `置信度 ${Math.round(confidence * 100)}%`;
+    $("#analysisResult").className = "analysis-card";
+    $("#analysisResult").innerHTML = renderUploadAnalysis({ category, apiResult, deltas, record, annotateResult });
+    triggerGaokaoCheerIfNeeded();
+    syncAchievements();
+    saveState();
+    renderAll();
+  } catch (error) {
+    console.warn("upload analyze flow failed:", error.message);
+    $("#analysisResult").className = "analysis-empty";
+    $("#analysisResult").textContent = "这次识图返图没成功，换一张图再试试，我还会继续陪你记住这一刻。";
+  } finally {
+    $("#analyzeBtn").disabled = false;
+    $("#analyzeBtn").textContent = "AI 识别并结算成长";
+  }
 }
 
 function photoFeedback(categoryKey) {
@@ -1678,6 +1729,18 @@ function normalizePetInput({ name, type, opening, personality, tone, imageUrl, s
   };
 }
 
+function styleBasePetLabel(key) {
+  return (
+    {
+      guardian: "守护型基底",
+      vitality: "活力型基底",
+      wisdom: "智慧型基底",
+      healing: "治愈型基底",
+      wonder: "奇想型基底",
+    }[key] || "守护型基底"
+  );
+}
+
 function addCustomPet(pet) {
   if (!state.customPets) state.customPets = {};
   const id = `custom-${crypto.randomUUID().slice(0, 8)}`;
@@ -1703,21 +1766,73 @@ function deleteCustomPet(key) {
 async function createCustomPet(event) {
   event.preventDefault();
   const file = $("#customPetImageInput").files[0];
-  const imageUrl = file ? await fileToDataUrl(file) : "";
-  const pet = normalizePetInput({
-    name: $("#customPetName").value,
-    type: $("#customPetType").value,
-    opening: $("#customPetOpening").value,
-    personality: $("#customPetPersonality").value,
-    tone: $("#customPetTone").value,
-    imageUrl,
-    source: "user-upload",
-  });
+  if (!file) {
+    $("#customPetImageInput").focus();
+    return;
+  }
+  const name = $("#customPetName").value.trim();
+  if (!name) {
+    $("#customPetName").focus();
+    return;
+  }
+  const styleBasePet = $("#customPetStyleBase").value || "guardian";
+  const personaHint = $("#customPetPersonaHint").value.trim();
+  const button = $("#customPetForm button[type='submit']");
+  const startedAt = performance.now();
+  button.disabled = true;
+  button.textContent = "创建中...";
+  $("#customPetResult").textContent = "正在根据参考图生成同五灵瑞画风的人物基础形象...";
+  let pet;
+  let provider = "local-character-template";
+  try {
+    const data = await postJson("/api/pets/custom-character", {
+      referenceImage: await fileToDataUrl(file),
+      name,
+      personaHint,
+      styleBasePet,
+    });
+    provider = data.provider || "model-character-image";
+    pet = normalizePetInput({
+      name: data.pet?.name,
+      type: data.pet?.type,
+      opening: data.pet?.opening,
+      personality: data.pet?.personality,
+      tone: data.pet?.tone,
+      imageUrl: data.pet?.imageUrl,
+      source: provider,
+    });
+    pet.styleBasePet = data.pet?.styleBasePet || styleBasePet;
+  } catch (error) {
+    console.warn("custom character API fallback:", error.message);
+    const basePet = getPet(styleBasePet);
+    pet = normalizePetInput({
+      name,
+      type: basePet.type,
+      opening: basePet.line,
+      personality: personaHint || `${basePet.type}气质的人物灵瑞，会按统一画风陪伴你。`,
+      tone: basePet.tone,
+      imageUrl: basePet.img,
+      source: provider,
+    });
+    pet.styleBasePet = styleBasePet;
+  } finally {
+    button.disabled = false;
+    button.textContent = "创建人物基础形象";
+  }
   addCustomPet(pet);
+  const elapsedSeconds = Math.max(0.1, (performance.now() - startedAt) / 1000).toFixed(1);
+  const providerLabel =
+    {
+      "model-character-image": "人物参考图 + 同画风 AI 生图",
+      "model-character-fallback": "AI 同画风兜底",
+      "local-character-template": "本地同画风兜底",
+    }[provider] || provider;
+  $("#customPetResult").innerHTML = `<strong>${escapeHtml(pet.name)}</strong><p>${escapeHtml(styleBasePetLabel(pet.styleBasePet || styleBasePet))} · ${escapeHtml(pet.tone)}</p><span class="tag">${escapeHtml(providerLabel)} · ${elapsedSeconds}s</span>`;
   $("#customPetForm").reset();
   $("#customPetPreview").removeAttribute("src");
   $(".mini-drop-zone").classList.remove("has-image");
-  $("#customPetImageHint").textContent = "上传灵瑞形象";
+  $("#customPetImageHint").textContent = "上传人物参考图";
+  $("#customPetStyleBase").value = "guardian";
 }
 
 function localCelebrityPet(keyword, need) {

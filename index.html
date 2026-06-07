@@ -115,24 +115,30 @@
           <div class="grid two">
             <article class="panel custom-pet-panel">
               <div class="panel-title">
-                <h3>上传图片自定义</h3>
-                <span>形象、性格和口吻都由你设定</span>
+                <h3>自定义人物</h3>
+                <span>上传参考图，生成同五灵瑞画风的人物形象</span>
               </div>
               <form id="customPetForm" class="custom-pet-form">
                 <label class="mini-drop-zone" for="customPetImageInput">
                   <input id="customPetImageInput" type="file" accept="image/*" />
                   <img id="customPetPreview" alt="" />
-                  <span id="customPetImageHint">上传灵瑞形象</span>
+                  <span id="customPetImageHint">上传人物参考图</span>
                 </label>
                 <div class="form-grid">
-                  <input id="customPetName" maxlength="12" placeholder="灵瑞名字，例如：小峰" />
-                  <input id="customPetType" maxlength="16" placeholder="类型，例如：高考导师型" />
+                  <input id="customPetName" maxlength="12" placeholder="人物名字，例如：小峰" />
+                  <select id="customPetStyleBase">
+                    <option value="guardian">守护型基底</option>
+                    <option value="wisdom">智慧型基底</option>
+                    <option value="healing">治愈型基底</option>
+                    <option value="vitality">活力型基底</option>
+                    <option value="wonder">奇想型基底</option>
+                  </select>
                 </div>
-                <input id="customPetOpening" maxlength="40" placeholder="开场白，例如：高考加油" />
-                <textarea id="customPetPersonality" maxlength="140" placeholder="描绘性格：直给、热血、会帮我分析选择，但不制造焦虑"></textarea>
-                <textarea id="customPetTone" maxlength="140" placeholder="描绘对话风格：先鼓劲，再给具体步骤，像朋友一样说人话"></textarea>
-                <button class="primary-button full" type="submit">创建自定义灵瑞</button>
+                <textarea id="customPetPersonaHint" maxlength="160" placeholder="人物气质一句话，例如：安静、可靠、像会提醒我学习的朋友"></textarea>
+                <button class="primary-button full" type="submit">创建人物基础形象</button>
+                <p class="outfit-note">人物创建只负责基础角色，不会和服饰工坊混在一起；后续换装仍去服饰工坊。</p>
               </form>
+              <div id="customPetResult" class="analysis-empty">创建后会自动加入上方灵瑞列表，并默认切换为当前角色。</div>
             </article>
             <article class="panel custom-pet-panel">
               <div class="panel-title">

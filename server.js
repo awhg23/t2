@@ -12,6 +12,8 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "doubao-seed-2-0-pro-260215";
 const OPENAI_API_MODE = process.env.OPENAI_API_MODE || (OPENAI_BASE_URL.includes("volces.com") ? "responses" : "chat");
 const OUTFIT_IMAGE_MODEL = process.env.OUTFIT_IMAGE_MODEL || "doubao-seedream-5-0-260128";
 const GENERATED_OUTFIT_DIR = path.join(ROOT, "assets", "generated", "outfits");
+const GENERATED_ANNOTATION_DIR = path.join(ROOT, "assets", "generated", "annotated");
+const GENERATED_CHARACTER_DIR = path.join(ROOT, "assets", "generated", "characters");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -33,6 +35,44 @@ const petProfiles = {
   zhangXuefeng: "高考导师型张雪峰老师：帅气、直给、清醒、提气，先说高考加油，再帮用户看清选择并给出可执行步骤。",
 };
 
+const basePetDirections = {
+  guardian: {
+    type: "守护型",
+    name: "天禄",
+    imageUrl: "/assets/pets/transparent/guardian.png",
+    colorMood: "warm beige, soft gold, calm moss green",
+    direction: "stable, reliable, warm, quiet guardian energy, campus-night healing mood",
+  },
+  vitality: {
+    type: "活力型",
+    name: "辟邪",
+    imageUrl: "/assets/pets/transparent/vitality.png",
+    colorMood: "sunny apricot, fresh grass green, bright warm orange",
+    direction: "energetic, sporty, bright, lively companion vibe, action-first campus mood",
+  },
+  wisdom: {
+    type: "智慧型",
+    name: "白泽",
+    imageUrl: "/assets/pets/transparent/wisdom.png",
+    colorMood: "soft teal, mist blue, gentle silver",
+    direction: "clear-minded, observant, rational but gentle, study-partner atmosphere",
+  },
+  healing: {
+    type: "治愈型",
+    name: "玄龟",
+    imageUrl: "/assets/pets/transparent/healing.png",
+    colorMood: "sage green, cream, muted peach",
+    direction: "soft, caring, cozy, restorative, window-light and homey atmosphere",
+  },
+  wonder: {
+    type: "奇想型",
+    name: "九尾",
+    imageUrl: "/assets/pets/transparent/wonder.png",
+    colorMood: "dreamy lavender, moonlight cream, pastel pink",
+    direction: "dreamy, imaginative, whimsical, magical campus scrapbook vibe",
+  },
+};
+
 const categoryNames = {
   study: "学习",
   sport: "运动",
@@ -42,6 +82,15 @@ const categoryNames = {
   creation: "创作",
   emotion: "情绪",
   organize: "生活整理",
+};
+
+const petAnnotationAssets = {
+  guardian: "assets/pets/transparent/guardian.png",
+  vitality: "assets/pets/transparent/vitality.png",
+  wisdom: "assets/pets/transparent/wisdom.png",
+  healing: "assets/pets/transparent/healing.png",
+  wonder: "assets/pets/transparent/wonder.png",
+  zhangXuefeng: "assets/pets/transparent/zhang-xuefeng.png",
 };
 
 function localPetReply(petKey, message) {
@@ -331,13 +380,21 @@ function escapeSvg(value) {
     .replace(/"/g, "&quot;");
 }
 
-async function sourceToBuffer(source) {
+async function sourceToBuffer(source, options = {}) {
   if (!source) throw new Error("image source is required");
   if (source.startsWith("data:")) {
     const base64 = source.split(",", 2)[1] || "";
     return Buffer.from(base64, "base64");
   }
-  const response = await fetch(source);
+  const controller = new AbortController();
+  const timeoutMs = options.timeoutMs || 90000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(source, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!response.ok) throw new Error(`Failed to fetch generated image: ${response.status}`);
   return Buffer.from(await response.arrayBuffer());
 }
@@ -461,10 +518,32 @@ async function persistOutfitImage(buffer) {
   return `/assets/generated/outfits/${fileName}`;
 }
 
+async function persistAnnotatedImage(buffer) {
+  fs.mkdirSync(GENERATED_ANNOTATION_DIR, { recursive: true });
+  const fileName = `annotated-${Date.now()}-${randomUUID().slice(0, 8)}.png`;
+  const filePath = path.join(GENERATED_ANNOTATION_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return `/assets/generated/annotated/${fileName}`;
+}
+
+async function persistCharacterImage(buffer) {
+  fs.mkdirSync(GENERATED_CHARACTER_DIR, { recursive: true });
+  const fileName = `character-${Date.now()}-${randomUUID().slice(0, 8)}.png`;
+  const filePath = path.join(GENERATED_CHARACTER_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+  return `/assets/generated/characters/${fileName}`;
+}
+
 async function finalizeOutfitImage(source) {
   const rawBuffer = await sourceToBuffer(source);
   const transparentBuffer = await removeBackgroundToTransparent(rawBuffer);
   return persistOutfitImage(transparentBuffer);
+}
+
+async function finalizeCharacterImage(source) {
+  const rawBuffer = await sourceToBuffer(source, { timeoutMs: 120000 });
+  const transparentBuffer = await removeBackgroundToTransparent(rawBuffer);
+  return persistCharacterImage(transparentBuffer);
 }
 
 async function generateOutfitImage({ prompt, referenceImage }) {
@@ -511,6 +590,535 @@ async function generateOutfitImage({ prompt, referenceImage }) {
   if (item.b64_json) return finalizeOutfitImage(`data:image/png;base64,${item.b64_json}`);
   if (payload.url) return finalizeOutfitImage(payload.url);
   throw new Error("Image generation response did not include a URL or base64 image");
+}
+
+async function requestSeedreamImage({ prompt, referenceImage, timeoutMs = 180000 }) {
+  if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY or ARK_API_KEY is not set");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(`${OPENAI_BASE_URL}/images/generations`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OUTFIT_IMAGE_MODEL,
+        prompt,
+        ...(referenceImage ? { image: [referenceImage] } : {}),
+        size: "2048x2048",
+        response_format: "url",
+        output_format: "png",
+        watermark: false,
+      }),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+  const text = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    payload = { raw: text };
+  }
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || `Image generation failed with ${response.status}`);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+  const item = payload.data?.[0] || payload.result?.[0] || payload.images?.[0] || {};
+  if (item.url) return item.url;
+  if (item.b64_json) return `data:image/png;base64,${item.b64_json}`;
+  if (payload.url) return payload.url;
+  throw new Error("Image generation response did not include a URL or base64 image");
+}
+
+function customCharacterTextFallback({ name, personaHint, styleBasePet }) {
+  const base = basePetDirections[styleBasePet] || basePetDirections.guardian;
+  const safeName = String(name || "").trim().slice(0, 12) || "自定义人物";
+  const hint = String(personaHint || "").trim().slice(0, 80);
+  return {
+    name: safeName,
+    type: base.type,
+    opening: base.type === "活力型" ? "我们现在就开始吧" : base.type === "智慧型" ? "先把这件事看清楚" : base.type === "治愈型" ? "先照顾好你自己" : base.type === "奇想型" ? "今天也收集一点灵感吧" : "我在这里陪你",
+    personality: hint || `${base.direction}，会陪伴用户慢慢成长。`,
+    tone:
+      base.type === "活力型"
+        ? "主动、明亮、会鼓励你先动起来。"
+        : base.type === "智慧型"
+          ? "清晰、理性、会把问题拆成小步骤。"
+          : base.type === "治愈型"
+            ? "温柔、放松、先接住情绪再说。"
+            : base.type === "奇想型"
+              ? "梦幻、有画面感、会把日常变成小故事。"
+              : "稳定、安抚、像熟悉的陪伴者一样回应。",
+    tags: [base.type.replace("型", ""), "人物灵瑞", "同画风"],
+    styleBasePet,
+  };
+}
+
+async function createCustomCharacterProfile({ name, personaHint, styleBasePet }) {
+  const fallback = customCharacterTextFallback({ name, personaHint, styleBasePet });
+  if (!OPENAI_API_KEY) return fallback;
+  const base = basePetDirections[styleBasePet] || basePetDirections.guardian;
+  try {
+    const content = await openAIChat(
+      [
+        {
+          role: "system",
+          content: "你是灵瑞人物设计师。根据用户给定的人物名字、气质描述和风格基底，输出适合成长陪伴产品的人物灵瑞设定。只输出 JSON。",
+        },
+        {
+          role: "user",
+          content: [
+            `人物名字：${fallback.name}`,
+            `人物气质：${personaHint || "未提供"}`,
+            `风格基底：${styleBasePet}（${base.type}，${base.direction}）`,
+            "要求：这是一个已经被灵瑞化的人物，不是写实人物，也不是服饰描述。",
+            "JSON 字段：name,type,opening,personality,tone,tags。",
+            "约束：name 不超过 12 字；opening 不超过 20 字；type 直接使用对应风格基底类型；personality 不超过 60 字；tone 不超过 60 字；tags 为 3 到 4 个中文短词。",
+          ].join("\n"),
+        },
+      ],
+      { temperature: 0.7, max_tokens: 900, timeoutMs: 45000 },
+    );
+    const parsed = parseJsonFromText(content);
+    return {
+      ...fallback,
+      ...parsed,
+      name: String(parsed.name || fallback.name).trim().slice(0, 12) || fallback.name,
+      type: base.type,
+      opening: String(parsed.opening || fallback.opening).trim().slice(0, 20) || fallback.opening,
+      personality: String(parsed.personality || fallback.personality).trim().slice(0, 60) || fallback.personality,
+      tone: String(parsed.tone || fallback.tone).trim().slice(0, 60) || fallback.tone,
+      tags: Array.isArray(parsed.tags) && parsed.tags.length ? parsed.tags.slice(0, 4) : fallback.tags,
+      styleBasePet,
+    };
+  } catch (error) {
+    console.warn("custom character text fallback:", error.message);
+    return fallback;
+  }
+}
+
+function customCharacterImagePrompt({ name, personaHint, styleBasePet }) {
+  const base = basePetDirections[styleBasePet] || basePetDirections.guardian;
+  return [
+    "Create an original custom spirit-pet character for a Chinese campus growth companion H5 app.",
+    `Base art direction must strictly match the same visual system as the five starter pets, especially ${base.name}.`,
+    `Starter-pet style anchor: ${base.direction}. Palette mood: ${base.colorMood}.`,
+    `Character display name: ${name || "自定义人物"}.`,
+    `Persona hint: ${personaHint || "gentle campus companion"}.`,
+    "If a reference image is supplied, preserve only broad public visible traits such as hairstyle, face silhouette, glasses, overall vibe, and clothing outline, then transform them into an original spirit-pet character.",
+    "Do not create a realistic human portrait. This must look like the same chibi mascot family as the five initial pets: soft pastel colors, rounded cute anatomy, hand-drawn sticker silhouette, gentle linework, campus scrapbook feeling, polished 2D game asset.",
+    "Character should be full-body, single subject, centered, transparent background with alpha channel.",
+    "Keep the body proportions and rendering language compatible with the starter pets so the new character can stand beside them naturally.",
+    "Avoid photorealism, realistic skin texture, anime glamour style, 3D toy style, sharp fashion illustration, complex background, readable text, logos, watermark.",
+  ].join("\n");
+}
+
+function customCharacterFallbackPrompt({ name, personaHint, styleBasePet }) {
+  const base = basePetDirections[styleBasePet] || basePetDirections.guardian;
+  return [
+    "Create an original custom spirit-pet character for a Chinese campus growth companion H5 app.",
+    `This is a fallback generation without a reference image, but it must still strictly match the same mascot art system as the five starter pets, especially ${base.name}.`,
+    `Character display name: ${name || "自定义人物"}.`,
+    `Persona hint: ${personaHint || "gentle campus companion"}.`,
+    `Visual direction: ${base.direction}. Palette mood: ${base.colorMood}.`,
+    "Output one original full-body chibi companion character, transparent background, soft pastel sticker silhouette, rounded anatomy, clean 2D mascot style, hand-drawn scrapbook feeling.",
+    "Do not generate realistic humans, cosplay photos, 3D toys, fashion posters, complex scenes, background objects, or visible text.",
+  ].join("\n");
+}
+
+async function generateCustomCharacterImage({ prompt, fallbackPrompt, referenceImage }) {
+  const attempts = [
+    { provider: "model-character-image", prompt, referenceImage, label: "reference" },
+    { provider: "model-character-fallback", prompt: fallbackPrompt, referenceImage: "", label: "fallback" },
+  ];
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      const generatedSource = await requestSeedreamImage({
+        prompt: attempt.prompt,
+        referenceImage: attempt.referenceImage,
+        timeoutMs: attempt.label === "reference" ? 180000 : 120000,
+      });
+      const imageUrl = await finalizeCharacterImage(generatedSource);
+      return { imageUrl, provider: attempt.provider };
+    } catch (error) {
+      lastError = error;
+      console.warn(`custom character ${attempt.label} generation failed:`, error.message);
+    }
+  }
+  throw lastError || new Error("Character generation failed");
+}
+
+async function handleCustomCharacter(req, res) {
+  const body = await readJson(req);
+  const referenceImage = typeof body.referenceImage === "string" ? body.referenceImage.slice(0, 12 * 1024 * 1024) : "";
+  const name = String(body.name || "").trim().slice(0, 12);
+  const personaHint = String(body.personaHint || "").trim().slice(0, 160);
+  const styleBasePet = basePetDirections[body.styleBasePet] ? body.styleBasePet : "guardian";
+  if (!referenceImage) return json(res, 400, { ok: false, error: "referenceImage is required" });
+  if (!name) return json(res, 400, { ok: false, error: "name is required" });
+
+  const profile = await createCustomCharacterProfile({ name, personaHint, styleBasePet });
+  const fallbackImageUrl = (basePetDirections[styleBasePet] || basePetDirections.guardian).imageUrl;
+  let imageUrl = fallbackImageUrl;
+  let provider = "local-character-template";
+  try {
+    const generated = await generateCustomCharacterImage({
+      prompt: customCharacterImagePrompt({ name: profile.name, personaHint: profile.personality || personaHint, styleBasePet }),
+      fallbackPrompt: customCharacterFallbackPrompt({ name: profile.name, personaHint: profile.personality || personaHint, styleBasePet }),
+      referenceImage,
+    });
+    imageUrl = generated.imageUrl;
+    provider = generated.provider;
+  } catch (error) {
+    console.warn("custom character image fallback:", error.message);
+  }
+
+  json(res, 200, {
+    ok: true,
+    provider,
+    pet: {
+      ...profile,
+      imageUrl,
+      referenceImageUrl: provider === "model-character-image" ? "uploaded-reference" : "",
+    },
+  });
+}
+
+function wrapCuteText(text, maxChars = 9, maxLines = 3) {
+  const clean = String(text || "")
+    .replace(/\s+/g, "")
+    .replace(/[。！？；,.!?:：]+$/g, "")
+    .slice(0, maxChars * maxLines);
+  if (!clean) return [];
+  const lines = [];
+  for (let index = 0; index < clean.length && lines.length < maxLines; index += maxChars) {
+    lines.push(clean.slice(index, index + maxChars));
+  }
+  return lines;
+}
+
+function cuteShortText(text, fallback, maxLength = 20) {
+  const clean = String(text || "")
+    .replace(/\s+/g, "")
+    .replace(/[。！？；,.!?:：]+$/g, "")
+    .slice(0, maxLength);
+  return clean || fallback;
+}
+
+const genericCuteTerms = [
+  "治愈时刻",
+  "值得记住",
+  "值得记录",
+  "今日记录",
+  "好适合记下来",
+  "学习感",
+  "生活感",
+  "日常感",
+  "这一幕真治愈",
+  "看着就开心",
+  "今天主角",
+];
+
+function isGenericCuteText(text) {
+  const clean = cuteShortText(text, "", 30);
+  if (!clean) return true;
+  if (genericCuteTerms.includes(clean)) return true;
+  return /^(日常|学习|运动|饮食|风景|社交|创作|情绪|整理|记录|瞬间)$/.test(clean);
+}
+
+function cuteNaturalText(text, fallback, maxLength = 20) {
+  const clean = cuteShortText(text, "", maxLength);
+  if (!clean || isGenericCuteText(clean)) return cuteShortText(fallback, fallback, maxLength);
+  return clean;
+}
+
+function uniqueCuteItems(items, limit = 6, maxLength = 12) {
+  const result = [];
+  const seen = new Set();
+  for (const item of items || []) {
+    const clean = cuteShortText(item, "", maxLength);
+    if (!clean) continue;
+    if (seen.has(clean)) continue;
+    seen.add(clean);
+    result.push(clean);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
+function buildAnnotationFallbackCallouts({ analyzeResult, category, petName }) {
+  const categoryLabel = categoryNames[category] || "日常";
+  const event = cuteShortText(analyzeResult?.event, "", 8);
+  const tags = uniqueCuteItems(analyzeResult?.tags, 4, 8).filter((item) => !isGenericCuteText(item));
+  const emotions = uniqueCuteItems(analyzeResult?.emotionSignals, 3, 8).filter((item) => !isGenericCuteText(item));
+  const feedback = cuteShortText(analyzeResult?.feedback, "", 26);
+  const mainObject = event
+    ? cuteShortText(`这一幕像${event}`, "今天这一幕", 12)
+    : tags[0]
+      ? cuteShortText(`${tags[0]}被拍到了`, "今天这一幕", 12)
+      : "今天这一幕";
+  const ambience = tags[1]
+    ? cuteShortText(`${tags[1]}也很加分`, `${categoryLabel}气氛正好`, 12)
+    : cuteShortText(`${categoryLabel}气氛正好`, "光线刚刚好", 12);
+  const feeling = emotions[0]
+    ? cuteShortText(`${emotions[0]}慢慢冒出来`, "想把它记下来", 12)
+    : feedback
+      ? cuteNaturalText(feedback, "想把它记下来", 12)
+      : "想把它记下来";
+  const title = cuteShortText(event || tags[0] || "今日小瞬间", "今日小瞬间", 8);
+  const headline = feedback
+    ? cuteNaturalText(feedback, `${petName}想把这幕收好`, 16)
+    : emotions[0]
+      ? cuteShortText(`${emotions[0]}有落点了`, "这张图很会安慰人", 16)
+      : cuteShortText(`${categoryLabel}里有小亮点`, "这张图很会发光", 16);
+  const summary = cuteShortText(feedback || `${petName}觉得这一幕很值得收好`, `${petName}觉得这一幕很值得收好`, 26);
+  const chips = uniqueCuteItems([categoryLabel, ...emotions, ...tags], 3, 8).filter((item) => !isGenericCuteText(item) || item === categoryLabel);
+  return {
+    title,
+    headline,
+    callouts: [mainObject, ambience, feeling],
+    summary,
+    chips: chips.length ? chips : [categoryLabel, "小发现", "想收藏"],
+  };
+}
+
+function cutePalette(category) {
+  const palettes = {
+    study: { accent: "#8dcbd0", accentSoft: "#e9f7f8", accentStrong: "#5aa4af", glow: "#d7f0f2" },
+    sport: { accent: "#f6cf72", accentSoft: "#fff6d8", accentStrong: "#d8a742", glow: "#fff0bf" },
+    food: { accent: "#f4aab8", accentSoft: "#fff1f5", accentStrong: "#d87392", glow: "#ffe4ec" },
+    scenery: { accent: "#a8d9bf", accentSoft: "#edf8f1", accentStrong: "#6ead8b", glow: "#dff1e7" },
+    social: { accent: "#f1b9a0", accentSoft: "#fff3ec", accentStrong: "#d48a69", glow: "#ffe8db" },
+    creation: { accent: "#c9b3f7", accentSoft: "#f4efff", accentStrong: "#8d70da", glow: "#ebe1ff" },
+    emotion: { accent: "#b7c9ff", accentSoft: "#eef3ff", accentStrong: "#758ad8", glow: "#dfe7ff" },
+    organize: { accent: "#f7d194", accentSoft: "#fff7e5", accentStrong: "#c88f41", glow: "#fff0cd" },
+  };
+  return palettes[category] || palettes.study;
+}
+
+function fallbackAnnotationPlan({ analyzeResult, category, petName }) {
+  const semanticPlan = buildAnnotationFallbackCallouts({ analyzeResult, category, petName });
+  return {
+    title: semanticPlan.title,
+    headline: semanticPlan.headline,
+    callouts: semanticPlan.callouts,
+    summary: semanticPlan.summary,
+    chips: semanticPlan.chips,
+  };
+}
+
+async function createAnnotationPlan({ imageData, analyzeResult, category, petName }) {
+  if (!OPENAI_API_KEY || !imageData) {
+    return fallbackAnnotationPlan({ analyzeResult, category, petName });
+  }
+  const content = await openAIChat(
+    [
+      {
+        role: "system",
+        content: "你是可爱手账图片批注文案助手。根据图片和识图结果，生成适合覆盖在照片上的治愈系手写批注文案。只输出 JSON，不输出 Markdown。",
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: [
+              `当前灵宠名字：${petName}`,
+              `识别类别：${categoryNames[category] || category}`,
+              `识别事件：${analyzeResult?.event || "未提供"}`,
+              `识别标签：${Array.isArray(analyzeResult?.tags) ? analyzeResult.tags.join("、") : "未提供"}`,
+              `情绪线索：${Array.isArray(analyzeResult?.emotionSignals) ? analyzeResult.emotionSignals.join("、") : "未提供"}`,
+              `宠物反馈：${analyzeResult?.feedback || "未提供"}`,
+              "请输出严格 JSON，字段为：title, headline, callouts, summary, chips。",
+              "要求：title 不超过 8 个字；headline 不超过 16 个字；callouts 为 3 条、每条不超过 12 个字；summary 不超过 26 个字；chips 为 3 个、每个不超过 8 个字。",
+              "callouts[0] 写画面里的主体、动作或最先被看到的小细节；callouts[1] 写环境、光线、氛围或陪衬；callouts[2] 写情绪感受或为什么这一幕值得记住。",
+              "整体语气要像可爱手账批注，温柔、轻松、像宠物在旁边小声碎碎念；不要写命令式口吻，不要写技术词，不要像打卡总结。",
+              "不要把 tags 原样抄成单个标签词；尽量写成自然短句。避免输出“学习感”“治愈时刻”“值得记录”“今日记录”这类泛化占位词。",
+            ].join("\n"),
+          },
+          { type: "image_url", image_url: { url: imageData } },
+        ],
+      },
+    ],
+    { temperature: 0.6, max_tokens: 1000, timeoutMs: 60000 },
+  );
+  const parsed = parseJsonFromText(content);
+  const fallback = fallbackAnnotationPlan({ analyzeResult, category, petName });
+  return {
+    title: cuteNaturalText(parsed.title, fallback.title, 8),
+    headline: cuteNaturalText(parsed.headline, fallback.headline, 16),
+    callouts: (Array.isArray(parsed.callouts) ? parsed.callouts : fallback.callouts)
+      .map((item, index) => cuteNaturalText(item, fallback.callouts[index] || "想把它记下来", 12))
+      .slice(0, 3),
+    summary: cuteNaturalText(parsed.summary, fallback.summary, 26),
+    chips: (Array.isArray(parsed.chips) ? parsed.chips : fallback.chips)
+      .map((item, index) => cuteNaturalText(item, fallback.chips[index] || "小发现", 8))
+      .slice(0, 3),
+  };
+}
+
+async function resolvePetStickerBuffer({ petKey, petImage }) {
+  if (petImage) return sourceToBuffer(petImage);
+  const assetPath = petAnnotationAssets[petKey];
+  if (!assetPath) return null;
+  const filePath = path.join(ROOT, assetPath);
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath) : null;
+}
+
+function cuteOverlaySvg({ width, height, palette, plan, petName, petKey }) {
+  const titleLines = wrapCuteText(plan.title, 6, 2);
+  const headlineLines = wrapCuteText(plan.headline, 8, 2);
+  const callouts = (plan.callouts || []).slice(0, 3);
+  const ratio = width / Math.max(height, 1);
+  const isLandscape = ratio > 1.12;
+  const isPortrait = ratio < 0.86;
+  const compact = width < 900;
+  const leftPad = Math.round(width * 0.05);
+  const topPad = Math.round(height * 0.06);
+  const doodleStroke = compact ? 4 : 5;
+  const titleFont = Math.round(width * (compact ? 0.031 : 0.034));
+  const headlineFont = Math.round(width * (compact ? 0.022 : 0.024));
+  const calloutFont = Math.round(width * (compact ? 0.019 : 0.021));
+  const titleBoxWidth = Math.round(width * (isPortrait ? 0.5 : isLandscape ? 0.34 : 0.4));
+  const titleBoxHeight = Math.round(height * (isPortrait ? 0.13 : 0.14));
+
+  const calloutLayouts = isLandscape
+    ? [
+        { x: leftPad, y: Math.round(height * 0.67), rotate: -4, targetX: Math.round(width * 0.28), targetY: Math.round(height * 0.68) },
+        { x: Math.round(width * 0.68), y: Math.round(height * 0.33), rotate: 3, targetX: Math.round(width * 0.62), targetY: Math.round(height * 0.39) },
+        { x: Math.round(width * 0.69), y: Math.round(height * 0.58), rotate: 1, targetX: Math.round(width * 0.63), targetY: Math.round(height * 0.63) },
+      ]
+    : isPortrait
+      ? [
+          { x: leftPad, y: Math.round(height * 0.56), rotate: -3, targetX: Math.round(width * 0.31), targetY: Math.round(height * 0.65) },
+          { x: Math.round(width * 0.6), y: Math.round(height * 0.34), rotate: 2, targetX: Math.round(width * 0.54), targetY: Math.round(height * 0.4) },
+          { x: Math.round(width * 0.58), y: Math.round(height * 0.74), rotate: 0, targetX: Math.round(width * 0.52), targetY: Math.round(height * 0.78) },
+        ]
+      : [
+          { x: leftPad, y: Math.round(height * 0.62), rotate: -4, targetX: Math.round(width * 0.29), targetY: Math.round(height * 0.67) },
+          { x: Math.round(width * 0.68), y: Math.round(height * 0.3), rotate: 2, targetX: Math.round(width * 0.6), targetY: Math.round(height * 0.38) },
+          { x: Math.round(width * 0.68), y: Math.round(height * 0.67), rotate: 0, targetX: Math.round(width * 0.6), targetY: Math.round(height * 0.71) },
+        ];
+
+  function textGroup(lines, x, y, fontSize, rotate = 0, align = "start") {
+    const lineHeight = Math.round(fontSize * 1.35);
+    const anchor = align === "middle" ? "middle" : "start";
+    return `
+      <g transform="rotate(${rotate} ${x} ${y})">
+        ${lines
+          .map(
+            (line, index) => `
+          <text x="${x}" y="${y + index * lineHeight}" text-anchor="${anchor}"
+            font-size="${fontSize}" font-family="'Trebuchet MS','Segoe UI Rounded','PingFang SC','Microsoft YaHei',sans-serif"
+            font-weight="700" fill="#ffffff" stroke="rgba(111,84,96,0.16)" stroke-width="1.6" paint-order="stroke">
+            ${escapeSvg(line)}
+          </text>`,
+          )
+          .join("")}
+      </g>
+    `;
+  }
+
+  function noteBubble(lines, layout, fontSize) {
+    const safeLines = lines.length ? lines : ["想把它记下来"];
+    const lineHeight = Math.round(fontSize * 1.35);
+    const contentWidth = Math.max(...safeLines.map((line) => Math.max(2, line.length))) * fontSize + fontSize * 0.8;
+    const bubbleWidth = Math.round(contentWidth + fontSize * 1.5);
+    const bubbleHeight = Math.round(safeLines.length * lineHeight + fontSize * 1.3);
+    return `
+      <g transform="rotate(${layout.rotate} ${layout.x + bubbleWidth / 2} ${layout.y + bubbleHeight / 2})" filter="url(#softShadow)">
+        <rect x="${layout.x}" y="${layout.y}" width="${bubbleWidth}" height="${bubbleHeight}" rx="${Math.round(fontSize * 0.95)}"
+          fill="rgba(255,252,248,0.18)" stroke="rgba(255,255,255,0.96)" stroke-width="${compact ? 3 : 4}" stroke-dasharray="${compact ? "8 8" : "10 9"}"/>
+        ${safeLines
+          .map(
+            (line, index) => `
+          <text x="${layout.x + fontSize * 0.78}" y="${layout.y + fontSize * 1.05 + index * lineHeight}"
+            font-size="${fontSize}" font-family="'Trebuchet MS','Segoe UI Rounded','PingFang SC','Microsoft YaHei',sans-serif"
+            font-weight="700" fill="#ffffff" stroke="rgba(111,84,96,0.16)" stroke-width="1.4" paint-order="stroke">
+            ${escapeSvg(line)}
+          </text>`,
+          )
+          .join("")}
+      </g>
+      <path d="M ${layout.x + bubbleWidth * 0.16} ${layout.y + bubbleHeight * 0.92}
+        C ${layout.x + bubbleWidth * 0.12} ${layout.y + bubbleHeight + fontSize * 0.4},
+          ${layout.targetX - fontSize * 0.4} ${layout.targetY - fontSize * 0.3},
+          ${layout.targetX} ${layout.targetY}"
+        fill="none" stroke="#ffffff" stroke-width="${doodleStroke}" stroke-linecap="round" stroke-dasharray="${compact ? "7 8" : "8 9"}" opacity="0.95"/>
+    `;
+  }
+
+  const petLabel = cuteShortText(petKey === "zhangXuefeng" ? "高考加油" : petName, petName, 10);
+
+  return Buffer.from(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <defs>
+      <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#85616f" flood-opacity="0.16"/>
+      </filter>
+    </defs>
+
+    <rect x="${leftPad - 6}" y="${topPad - 4}" width="${titleBoxWidth}" height="${titleBoxHeight}" rx="26" fill="rgba(255,255,255,0.06)"/>
+
+    ${textGroup(titleLines, leftPad, topPad + Math.round(titleFont * 0.7), titleFont, -5)}
+    ${textGroup(headlineLines, leftPad + 16, topPad + Math.round(titleFont * 2.3), headlineFont, -2)}
+
+    <path d="M ${leftPad + 20} ${topPad + Math.round(titleBoxHeight * 0.9)} C ${leftPad + 56} ${topPad + Math.round(titleBoxHeight * 0.74)}, ${leftPad + 92} ${topPad + Math.round(titleBoxHeight * 0.98)}, ${leftPad + 134} ${topPad + Math.round(titleBoxHeight * 0.9)}" fill="none" stroke="#ffffff" stroke-width="${doodleStroke}" stroke-linecap="round" stroke-dasharray="${compact ? "7 8" : "8 9"}" opacity="0.92"/>
+
+    ${noteBubble(wrapCuteText(callouts[0] || "今天这一幕", 6, 2), calloutLayouts[0], calloutFont)}
+    ${noteBubble(wrapCuteText(callouts[1] || "光线刚刚好", 6, 2), calloutLayouts[1], calloutFont)}
+    ${noteBubble(wrapCuteText(callouts[2] || "想把它记下来", 6, 2), calloutLayouts[2], calloutFont)}
+
+    <g filter="url(#softShadow)">
+      <circle cx="${width - leftPad - 84}" cy="${topPad + 74}" r="66" fill="rgba(255,251,246,0.9)" stroke="rgba(255,255,255,0.96)" stroke-width="4"/>
+      <path d="M ${width - leftPad - 144} ${topPad + 20} q 18 -12 40 0" fill="none" stroke="${palette.accent}" stroke-width="5" stroke-linecap="round"/>
+      <path d="M ${width - leftPad - 28} ${topPad + 28} q 10 -12 24 -4" fill="none" stroke="${palette.accent}" stroke-width="5" stroke-linecap="round"/>
+      <text x="${width - leftPad - 84}" y="${topPad + 160}" text-anchor="middle"
+        font-size="${Math.round(width * 0.016)}" font-family="'Trebuchet MS','Segoe UI Rounded','PingFang SC','Microsoft YaHei',sans-serif"
+        font-weight="700" fill="#ffffff" stroke="rgba(111,84,96,0.16)" stroke-width="1.4" paint-order="stroke">${escapeSvg(petLabel)}</text>
+    </g>
+  </svg>`);
+}
+
+async function composeAnnotatedPhoto({ imageData, plan, category, petKey, petName, petImage }) {
+  const baseBuffer = await sourceToBuffer(imageData);
+  const base = sharp(baseBuffer).rotate();
+  const metadata = await base.metadata();
+  const targetWidth = metadata.width && metadata.width > 1280 ? 1280 : metadata.width || 1080;
+  const resized = base.resize({ width: targetWidth, withoutEnlargement: true }).png();
+  const resizedBuffer = await resized.toBuffer();
+  const resizedMeta = await sharp(resizedBuffer).metadata();
+  const width = resizedMeta.width || targetWidth;
+  const height = resizedMeta.height || 1440;
+  const palette = cutePalette(category);
+  const overlay = cuteOverlaySvg({ width, height, palette, plan, petName, petKey });
+  const composites = [{ input: overlay, left: 0, top: 0 }];
+  const stickerBuffer = await resolvePetStickerBuffer({ petKey, petImage }).catch(() => null);
+  if (stickerBuffer) {
+    const stickerSize = Math.max(118, Math.round(width * 0.14));
+    const petLayer = await sharp(stickerBuffer)
+      .ensureAlpha()
+      .resize({ width: stickerSize, height: stickerSize, fit: "contain" })
+      .png()
+      .toBuffer();
+    composites.push({
+      input: petLayer,
+      left: width - Math.round(width * 0.05) - stickerSize - 25,
+      top: Math.round(height * 0.055) + 8,
+    });
+  }
+  const finalBuffer = await sharp(resizedBuffer).composite(composites).png().toBuffer();
+  const imageUrl = await persistAnnotatedImage(finalBuffer);
+  return { imageUrl, palette };
 }
 
 async function handleChat(req, res) {
@@ -737,6 +1345,29 @@ async function handleImageAnalyze(req, res) {
   });
 }
 
+async function handleImageAnnotate(req, res) {
+  const body = await readJson(req);
+  const imageData = typeof body.imageData === "string" ? body.imageData.slice(0, 12 * 1024 * 1024) : "";
+  if (!imageData) return json(res, 400, { ok: false, error: "imageData is required" });
+
+  const analyzeResult = body.analyzeResult && typeof body.analyzeResult === "object" ? body.analyzeResult : {};
+  const category = categoryNames[analyzeResult.category] ? analyzeResult.category : body.selectedCategory || "study";
+  const petKey = String(body.petKey || "guardian").slice(0, 40);
+  const petName = String(body.petName || "灵瑞").trim().slice(0, 16) || "灵瑞";
+  const petImage = typeof body.petImage === "string" ? body.petImage.slice(0, 12 * 1024 * 1024) : "";
+
+  const plan = await createAnnotationPlan({ imageData, analyzeResult, category, petName });
+  const composed = await composeAnnotatedPhoto({ imageData, plan, category, petKey, petName, petImage });
+
+  json(res, 200, {
+    ok: true,
+    provider: OPENAI_API_KEY ? "openai-overlay" : "local-overlay",
+    imageUrl: composed.imageUrl,
+    plan,
+    palette: composed.palette,
+  });
+}
+
 async function handlePersona(req, res) {
   const body = await readJson(req);
   const content = await openAIChat(
@@ -824,7 +1455,9 @@ async function handleApi(req, res, pathname) {
     }
     if (req.method !== "POST") return json(res, 405, { ok: false, error: "Method not allowed" });
     if (pathname === "/api/chat/reply") return await handleChat(req, res);
+    if (pathname === "/api/pets/custom-character") return await handleCustomCharacter(req, res);
     if (pathname === "/api/images/analyze") return await handleImageAnalyze(req, res);
+    if (pathname === "/api/images/annotate") return await handleImageAnnotate(req, res);
     if (pathname === "/api/persona/generate") return await handlePersona(req, res);
     if (pathname === "/api/outfits/generate") return await handleOutfitGenerate(req, res);
     if (pathname === "/api/pets/celebrity") return await handleCelebrityPet(req, res);
